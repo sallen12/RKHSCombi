@@ -1,5 +1,5 @@
 
-load_data <- function(lt = NULL, stat_id = NULL, path = "~/") {
+load_data <- function(lt = NULL, stat_id = NULL, path = "C:/Users/sa20i493/Documents/Data/MeteoSwiss/") {
 
   library(arrow)
   library(dplyr)
