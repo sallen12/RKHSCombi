@@ -171,27 +171,27 @@ get_scores <- function(tr_dat, ts_dat, kernel = "Gaussian", clim = FALSE) {
   
   
   # COSMO-1E
-  x <- ts_dat %>% select(`COSMO-1E`) %>% as.matrix()
+  x <- ts_dat %>% dplyr::select(`COSMO-1E`) %>% as.matrix()
   crps_vec[2] <- mean(crps_sample(y_ts, x))
   
   
   # COSMO-2E
-  x <- ts_dat %>% select(`COSMO-2E`) %>% as.matrix()
+  x <- ts_dat %>% dplyr::select(`COSMO-2E`) %>% as.matrix()
   crps_vec[3] <- mean(crps_sample(y_ts, x))
   
   
   # IFS
-  x <- ts_dat %>% select(ECMWF_IFS) %>% as.matrix()
+  x <- ts_dat %>% dplyr::select(ECMWF_IFS) %>% as.matrix()
   crps_vec[4] <- mean(crps_sample(y_ts, x))
   
   
   # Multi-model
-  x <- ts_dat %>% select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>% as.matrix()
+  x <- ts_dat %>% dplyr::select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>% as.matrix()
   crps_vec[5] <- mean(crps_sample(y_ts, x))
   
   
   # Linear pool
-  x_tr <- tr_dat %>% select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>% as.matrix()
+  x_tr <- tr_dat %>% dplyr::select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>% as.matrix()
   w_lp <- get_weights(x_tr, y_tr, kernel, ind = list(1:11, 12:32, 33:83))
   w <- t(replicate(length(y_ts), rep(w_lp, c(11, 21, 51))))
   
@@ -206,16 +206,16 @@ get_scores <- function(tr_dat, ts_dat, kernel = "Gaussian", clim = FALSE) {
   
   
   # Weighted order statistics
-  x_c1 <- tr_dat %>% select(`COSMO-1E`) %>% as.matrix() %>% apply(., 1, sort) %>% t()
-  x_c2 <- tr_dat %>% select(`COSMO-2E`) %>% as.matrix() %>% apply(., 1, sort) %>% t()
-  x_ifs <- tr_dat %>% select(ECMWF_IFS) %>% as.matrix() %>% apply(., 1, sort) %>% t()
+  x_c1 <- tr_dat %>% dplyr::select(`COSMO-1E`) %>% as.matrix() %>% apply(., 1, sort) %>% t()
+  x_c2 <- tr_dat %>% dplyr::select(`COSMO-2E`) %>% as.matrix() %>% apply(., 1, sort) %>% t()
+  x_ifs <- tr_dat %>% dplyr::select(ECMWF_IFS) %>% as.matrix() %>% apply(., 1, sort) %>% t()
   x_ord_tr <- cbind(x_c1, x_c2, x_ifs)
   w_ord <- get_weights(x_ord_tr, y_tr, kernel)
   w <- t(replicate(length(y_ts), w_ord))
   
-  x_c1 <- ts_dat %>% select(`COSMO-1E`) %>% as.matrix() %>% apply(., 1, sort) %>% t()
-  x_c2 <- ts_dat %>% select(`COSMO-2E`) %>% as.matrix() %>% apply(., 1, sort) %>% t()
-  x_ifs <- ts_dat %>% select(ECMWF_IFS) %>% as.matrix() %>% apply(., 1, sort) %>% t()
+  x_c1 <- ts_dat %>% dplyr::select(`COSMO-1E`) %>% as.matrix() %>% apply(., 1, sort) %>% t()
+  x_c2 <- ts_dat %>% dplyr::select(`COSMO-2E`) %>% as.matrix() %>% apply(., 1, sort) %>% t()
+  x_ifs <- ts_dat %>% dplyr::select(ECMWF_IFS) %>% as.matrix() %>% apply(., 1, sort) %>% t()
   x_ord <- cbind(x_c1, x_c2, x_ifs)
   crps_vec[8] <- mean(crps_sample(y_ts, x_ord, w = w))
   
@@ -223,12 +223,12 @@ get_scores <- function(tr_dat, ts_dat, kernel = "Gaussian", clim = FALSE) {
   
   if (clim) {
     # Linear pool + Clim
-    x_tr <- tr_dat %>% select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>% as.matrix()
+    x_tr <- tr_dat %>% dplyr::select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>% as.matrix()
     x_tr <- cbind(x_tr, t(replicate(length(y_tr), y_tr)))
     w_lp_cl <- get_weights(x_tr, y_tr, kernel, ind = list(1:11, 12:32, 33:83, 84:ncol(x_tr)))
     w <- t(replicate(length(y_ts), rep(w_lp_cl, c(11, 21, 51, (ncol(x_tr) - 83)))))
     
-    x <- ts_dat %>% select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>% as.matrix()
+    x <- ts_dat %>% dplyr::select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>% as.matrix()
     x <- cbind(x, t(replicate(length(y_ts), y_tr)))
     crps_vec[9] <- mean(crps_sample(y_ts, x, w = w))
     
@@ -279,22 +279,22 @@ get_mbm_scores <- function(tr_dat, ts_dat, kernel = "Gaussian", clim = FALSE) {
   
   
   # COSMO-1E
-  x_tr_c1 <- tr_dat %>% select(`COSMO-1E`) %>% as.matrix()
-  x_c1 <- ts_dat %>% select(`COSMO-1E`) %>% as.matrix()
+  x_tr_c1 <- tr_dat %>% dplyr::select(`COSMO-1E`) %>% as.matrix()
+  x_c1 <- ts_dat %>% dplyr::select(`COSMO-1E`) %>% as.matrix()
   x_c1 <- mbm_mom_est(y_tr, x_tr_c1, x_c1)
   crps_vec[2] <- mean(crps_sample(y_ts, x_c1))
   
   
   # COSMO-2E
-  x_tr_c2 <- tr_dat %>% select(`COSMO-2E`) %>% as.matrix()
-  x_c2 <- ts_dat %>% select(`COSMO-2E`) %>% as.matrix()
+  x_tr_c2 <- tr_dat %>% dplyr::select(`COSMO-2E`) %>% as.matrix()
+  x_c2 <- ts_dat %>% dplyr::select(`COSMO-2E`) %>% as.matrix()
   x_c2 <- mbm_mom_est(y_tr, x_tr_c2, x_c2)
   crps_vec[3] <- mean(crps_sample(y_ts, x_c2))
   
   
   # IFS
-  x_tr_ifs <- tr_dat %>% select(ECMWF_IFS) %>% as.matrix()
-  x_ifs <- ts_dat %>% select(ECMWF_IFS) %>% as.matrix()
+  x_tr_ifs <- tr_dat %>% dplyr::select(ECMWF_IFS) %>% as.matrix()
+  x_ifs <- ts_dat %>% dplyr::select(ECMWF_IFS) %>% as.matrix()
   x_ifs <- mbm_mom_est(y_tr, x_tr_ifs, x_ifs)
   crps_vec[4] <- mean(crps_sample(y_ts, x_ifs))
   
@@ -305,7 +305,7 @@ get_mbm_scores <- function(tr_dat, ts_dat, kernel = "Gaussian", clim = FALSE) {
   
   
   # Linear pool
-  x_tr <- cbind(x_tr_x1, x_tr_c2, x_tr_ifs)
+  x_tr <- cbind(x_tr_c1, x_tr_c2, x_tr_ifs)
   x_tr <- mbm_mom_est(y_tr, x_tr, x_tr)
   w_lp <- get_weights(x_tr, y_tr, kernel, ind = list(1:11, 12:32, 33:83))
   w <- t(replicate(length(y_ts), rep(w_lp, c(11, 21, 51))))
@@ -321,21 +321,21 @@ get_mbm_scores <- function(tr_dat, ts_dat, kernel = "Gaussian", clim = FALSE) {
   
   
   # Weighted order statistics
-  x_c1_tr <- tr_dat %>% select(`COSMO-1E`) %>% as.matrix() 
+  x_c1_tr <- tr_dat %>% dplyr::select(`COSMO-1E`) %>% as.matrix() 
   x_c1 <- x_c1_tr %>% mbm_mom_est(y_tr, ., .) %>% apply(., 1, sort) %>% t()
-  x_c2_tr <- tr_dat %>% select(`COSMO-2E`) %>% as.matrix() 
+  x_c2_tr <- tr_dat %>% dplyr::select(`COSMO-2E`) %>% as.matrix() 
   x_c2 <- x_c2_tr %>% mbm_mom_est(y_tr, ., .) %>% apply(., 1, sort) %>% t()
-  x_ifs_tr <- tr_dat %>% select(ECMWF_IFS) %>% as.matrix() 
+  x_ifs_tr <- tr_dat %>% dplyr::select(ECMWF_IFS) %>% as.matrix() 
   x_ifs <- x_ifs_tr %>% mbm_mom_est(y_tr, ., .) %>% apply(., 1, sort) %>% t()
   x_ord_tr <- cbind(x_c1, x_c2, x_ifs)
   w_ord <- get_weights(x_ord_tr, y_tr, kernel)
   w <- t(replicate(length(y_ts), w_ord))
   
-  x_c1 <- ts_dat %>% select(`COSMO-1E`) %>% as.matrix() %>% 
+  x_c1 <- ts_dat %>% dplyr::select(`COSMO-1E`) %>% as.matrix() %>% 
     mbm_mom_est(y_tr, x_c1_tr, .) %>% apply(., 1, sort) %>% t()
-  x_c2 <- ts_dat %>% select(`COSMO-2E`) %>% as.matrix() %>%
+  x_c2 <- ts_dat %>% dplyr::select(`COSMO-2E`) %>% as.matrix() %>%
     mbm_mom_est(y_tr, x_c2_tr, .) %>% apply(., 1, sort) %>% t()
-  x_ifs <- ts_dat %>% select(ECMWF_IFS) %>% as.matrix() %>%
+  x_ifs <- ts_dat %>% dplyr::select(ECMWF_IFS) %>% as.matrix() %>%
     mbm_mom_est(y_tr, x_ifs_tr, .) %>% apply(., 1, sort) %>% t()
   x_ord <- cbind(x_c1, x_c2, x_ifs)
   crps_vec[8] <- mean(crps_sample(y_ts, x_ord, w = w))
@@ -343,13 +343,13 @@ get_mbm_scores <- function(tr_dat, ts_dat, kernel = "Gaussian", clim = FALSE) {
   
   if (clim) {
     # Linear pool + Clim
-    x_tr <- tr_dat %>% select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>% as.matrix()
+    x_tr <- tr_dat %>% dplyr::select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>% as.matrix()
     x_tr <- mbm_mom_est(y_tr, x_tr, x_tr)
     x_tr <- cbind(x_tr, t(replicate(length(y_tr), y_tr)))
     w_lp_cl <- get_weights(x_tr, y_tr, kernel, ind = list(1:11, 12:32, 33:83, 84:ncol(x_tr)))
     w <- t(replicate(length(y_ts), rep(w_lp_cl, c(11, 21, 51, (ncol(x_tr) - 83)))))
     
-    x <- ts_dat %>% select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>% as.matrix()
+    x <- ts_dat %>% dplyr::select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>% as.matrix()
     x <- mbm_mom_est(y_tr, x_tr, x)
     x <- cbind(x, t(replicate(length(y_ts), y_tr)))
     crps_vec[9] <- mean(crps_sample(y_ts, x, w = w))
@@ -393,16 +393,16 @@ get_mv_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian", clim =
     colnames(crps_mat) <- names(es_vec) <- c("Clim.", "C1", "C2", "IFS", "MM", "LP", "Wtd")
   }
   
-  y_tr <- tr_dat %>% select(nat_abbr, obs) %>% 
+  y_tr <- tr_dat %>% dplyr::select(nat_abbr, obs) %>% 
     group_by(nat_abbr) %>%
     mutate(row = row_number()) %>%
     pivot_wider(names_from = nat_abbr, values_from = obs) %>%
-    select(-row) %>% as.matrix()
-  y_ts <- ts_dat %>% select(nat_abbr, obs) %>% 
+    dplyr::select(-row) %>% as.matrix()
+  y_ts <- ts_dat %>% dplyr::select(nat_abbr, obs) %>% 
     group_by(nat_abbr) %>%
     mutate(row = row_number()) %>%
     pivot_wider(names_from = nat_abbr, values_from = obs) %>%
-    select(-row) %>% as.matrix()
+    dplyr::select(-row) %>% as.matrix()
   n_tr <- nrow(y_tr)
   n_ts <- nrow(y_ts)
   d <- ncol(y_tr)
@@ -416,7 +416,7 @@ get_mv_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian", clim =
   # COSMO-1E
   x <- lapply(stat_ids, function(z) {
     ts_dat %>% filter(nat_abbr == z) %>% 
-      select(`COSMO-1E`) %>%
+      dplyr::select(`COSMO-1E`) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
   es_vec[2] <- mean(sapply(1:n_ts, function(i) es_sample(y_ts[i, ], x[i, , ])))
@@ -426,7 +426,7 @@ get_mv_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian", clim =
   # COSMO-2E
   x <- lapply(stat_ids, function(z) {
     ts_dat %>% filter(nat_abbr == z) %>% 
-      select(`COSMO-2E`) %>%
+      dplyr::select(`COSMO-2E`) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
   es_vec[3] <- mean(sapply(1:n_ts, function(i) es_sample(y_ts[i, ], x[i, , ])))
@@ -436,7 +436,7 @@ get_mv_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian", clim =
   # IFS
   x <- lapply(stat_ids, function(z) {
     ts_dat %>% filter(nat_abbr == z) %>% 
-      select(ECMWF_IFS) %>%
+      dplyr::select(ECMWF_IFS) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
   es_vec[4] <- mean(sapply(1:n_ts, function(i) es_sample(y_ts[i, ], x[i, , ])))
@@ -446,7 +446,7 @@ get_mv_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian", clim =
   # Multi-model
   x <- lapply(stat_ids, function(z) {
     ts_dat %>% filter(nat_abbr == z) %>% 
-      select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>%
+      dplyr::select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
   es_vec[5] <- mean(sapply(1:n_ts, function(i) es_sample(y_ts[i, ], x[i, , ])))
@@ -456,7 +456,7 @@ get_mv_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian", clim =
   # Linear pool
   x_tr <- lapply(stat_ids, function(z) {
     tr_dat %>% filter(nat_abbr == z) %>% 
-      select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>%
+      dplyr::select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
   w_lp <- get_mv_weights(x_tr, y_tr, kernel, ind = list(1:11, 12:32, 33:83))
@@ -520,16 +520,16 @@ get_mv_mbm_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian", cl
     colnames(crps_mat) <- names(es_vec) <- c("Clim.", "C1", "C2", "IFS", "MM", "LP", "Wtd")
   }
   
-  y_tr <- tr_dat %>% select(nat_abbr, obs) %>% 
+  y_tr <- tr_dat %>% dplyr::select(nat_abbr, obs) %>% 
     group_by(nat_abbr) %>%
     mutate(row = row_number()) %>%
     pivot_wider(names_from = nat_abbr, values_from = obs) %>%
-    select(-row) %>% as.matrix()
-  y_ts <- ts_dat %>% select(nat_abbr, obs) %>% 
+    dplyr::select(-row) %>% as.matrix()
+  y_ts <- ts_dat %>% dplyr::select(nat_abbr, obs) %>% 
     group_by(nat_abbr) %>%
     mutate(row = row_number()) %>%
     pivot_wider(names_from = nat_abbr, values_from = obs) %>%
-    select(-row) %>% as.matrix()
+    dplyr::select(-row) %>% as.matrix()
   n_tr <- nrow(y_tr)
   n_ts <- nrow(y_ts)
   d <- ncol(y_tr)
@@ -543,12 +543,12 @@ get_mv_mbm_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian", cl
   # COSMO-1E
   x_tr <- lapply(stat_ids, function(z) {
     tr_dat %>% filter(nat_abbr == z) %>% 
-      select(`COSMO-1E`) %>%
+      dplyr::select(`COSMO-1E`) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
   x <- lapply(stat_ids, function(z) {
     ts_dat %>% filter(nat_abbr == z) %>% 
-      select(`COSMO-1E`) %>%
+      dplyr::select(`COSMO-1E`) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
   x <- lapply(1:d, function(j) mbm_mom_est(y_tr[, j], x_tr[, j, ], x[, j, ]))
@@ -560,12 +560,12 @@ get_mv_mbm_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian", cl
   # COSMO-2E
   x_tr <- lapply(stat_ids, function(z) {
     tr_dat %>% filter(nat_abbr == z) %>% 
-      select(`COSMO-2E`) %>%
+      dplyr::select(`COSMO-2E`) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
   x <- lapply(stat_ids, function(z) {
     ts_dat %>% filter(nat_abbr == z) %>% 
-      select(`COSMO-2E`) %>%
+      dplyr::select(`COSMO-2E`) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
   x <- lapply(1:d, function(j) mbm_mom_est(y_tr[, j], x_tr[, j, ], x[, j, ]))
@@ -577,12 +577,12 @@ get_mv_mbm_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian", cl
   # IFS
   x_tr <- lapply(stat_ids, function(z) {
     tr_dat %>% filter(nat_abbr == z) %>% 
-      select(ECMWF_IFS) %>%
+      dplyr::select(ECMWF_IFS) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
   x <- lapply(stat_ids, function(z) {
     ts_dat %>% filter(nat_abbr == z) %>% 
-      select(ECMWF_IFS) %>%
+      dplyr::select(ECMWF_IFS) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
   x <- lapply(1:d, function(j) mbm_mom_est(y_tr[, j], x_tr[, j, ], x[, j, ]))
@@ -594,12 +594,12 @@ get_mv_mbm_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian", cl
   # Multi-model
   x_tr <- lapply(stat_ids, function(z) {
     tr_dat %>% filter(nat_abbr == z) %>% 
-      select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>%
+      dplyr::select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
   x <- lapply(stat_ids, function(z) {
     ts_dat %>% filter(nat_abbr == z) %>% 
-      select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>%
+      dplyr::select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
   x <- lapply(1:d, function(j) mbm_mom_est(y_tr[, j], x_tr[, j, ], x[, j, ]))
@@ -710,7 +710,6 @@ lt_vec <- 1:33
 
 # stations
 stat_list <- get_stations(lt_vec)
-
 
 
 ################################################################################
@@ -1030,39 +1029,80 @@ results4 <- experiment4(kernel = "Energy", lt_vec = 18)
 results4_mbm <- experiment4(kernel = "Energy", lt_vec = 18, mbm = TRUE)
 
 
-
 ################################################################################
 ##### evaluate
 
+save(results1, results1_mbm, results3, results3_mbm, 
+     file = "C:/Users/sa20i493/Documents/R/KernelEmbeddings/Data/results_data.RData")
 
-### plot station altitudes
+
+### plot stations
+
+library(terra)
+library(viridis)
+library(rnaturalearth)
+library(sf)  # For handling vector data
 
 SMN_stations <- readRDS("C:/Users/sa20i493/Documents/R/WeightedLoss/WindGusts/SMN_stations.rds")
 SMN_stations <- SMN_stations %>% filter(nat_abbr %in% stat_list)
 
-plot_map <- function(lons, lats, z, ymin = 0, ymax = 15, title = NULL){
+plot_map <- function(lons, lats, z, title = NULL){
   if (is.matrix(z)) z <- as.vector(z)
   
-  world <- map_data("world")
-  ind <- (world$long >= min(lons) & world$long < max(lons)) & (world$lat >= min(lats) & world$lat <= max(lats))
-  world <- world[ind, ]
+  ## elevation data
+  #dem <- elevation_30s(country = "CHE", path = tempdir())
+  dem <- elevation_global(res = 0.5, path = tempdir())
   
+  xmin <- 5.8  # Western edge
+  xmax <- 10.5 # Eastern edge
+  ymin <- 45.8 # Southern edge
+  ymax <- 47.9 # Northern edge
+  
+  region_extent <- terra::ext(xmin, xmax, ymin, ymax)
+  cropped_dem <- terra::crop(dem, region_extent)
+  dem_df <- as.data.frame(cropped_dem, xy = TRUE)
+  
+  colnames(dem_df) <- c("lon", "lat", "elevation")
+  
+  ## boundary data
+  switzerland <- ne_countries(scale = "large", country = "Switzerland", returnclass = "sf")
+
+  ## plot data
   df <- data.frame(lat = lats, lon = lons, z = z)
-  plot_obj <- ggplot() + borders("world") +
-    coord_fixed(ylim = range(lats), xlim = range(lons)) +
+  
+  # Plot the elevation data
+  plot_obj <- 
+    ggplot() +
+    geom_raster(data = dem_df, aes(x = lon, y = lat, fill = elevation)) +
+    geom_sf(data = switzerland, fill = NA, color = "black") +
     geom_point(data = df, aes(lon, lat, fill = z), shape = 21) +
-    scale_fill_gradient(low = "white", high = "red", limits = c(ymin, ymax),
-                       guide_colorbar(frame.colour = "black", ticks.colour = "black")) +
-    theme_void() + theme(legend.title = element_blank(),
-                         panel.border = element_rect(colour = "black", fill = NA, linewidth = 1),
-                         legend.key.width = unit(0.3, "in")) +
-    ggtitle(title)
+    scale_x_continuous(name = "Longitude", expand = c(0, 0)) +
+    scale_y_continuous(name = "Latitude", expand = c(0, 0)) +
+    scale_fill_gradient(name = "Elevation (m)", low = "white", high = "grey40") +
+    theme_minimal() +
+    theme(panel.border = element_rect(color = "black", fill = NA))
+  
+  
+  #world <- map_data("world")
+  #ind <- (world$long >= xmin & world$long <= xmax) & (world$lat >= ymin & world$lat <= ymax)
+  #world <- world[ind, ]
+  
+  #plot_obj <- ggplot() + borders("world") +
+    #coord_fixed(ylim = range(lats), xlim = range(lons)) +
+    #geom_point(data = df, aes(lon, lat, fill = z), shape = 21) +
+    #scale_fill_gradient(low = "white", high = "red", limits = c(ymin, ymax),
+    #                   guide_colorbar(frame.colour = "black", ticks.colour = "black")) +
+    #theme_void() + theme(legend.title = element_blank(),
+    #                     panel.border = element_rect(colour = "black", fill = NA, linewidth = 1),
+    #                     legend.key.width = unit(0.3, "in")) +
+    #ggtitle(title)
   
   return(plot_obj)
   
 }
-plot_map(SMN_stations$longitude, SMN_stations$latitude, SMN_stations$station_height, ymax = 3500)
-ggsave("Figures/cs_alt_map.png", height = 1.7, width = 3.4)
+
+plot_map(SMN_stations$longitude, SMN_stations$latitude, SMN_stations$station_height)
+ggsave("Figures/cs_alt_map.png", height = 3, width = 5)
 
 
 ### plot weights vs lead time
@@ -1072,14 +1112,15 @@ w <- cbind(rowSums(w[, 1:11]), rowSums(w[, 12:32]), rowSums(w[, 33:83]))
 df <- data.frame(lt = 1:33, 
                  w = as.vector(w),
                  mth = rep(c("COSMO-1E", "COSMO-2E", "ECMWF IFS"), each = 33))
-ggplot(df) + geom_line(aes(x = lt, y = w, col = mth)) +
+ggplot(df) + geom_line(aes(x = lt, y = w, col = mth, linetype = mth)) +
   scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
   scale_y_continuous(name = "Weight", limits = c(0, 1), expand = c(0, 0)) +
   theme_bw() +
-  theme(panel.grid = element_blank(),
-        legend.title = element_blank(),
+  theme(legend.title = element_blank(),
         legend.justification = c(0.5, 1),
         legend.position = c(0.5, 0.99),
+        legend.background = element_rect(fill = "transparent", color = NA),
+        legend.key = element_rect(fill = "transparent", color = NA),
         legend.direction="horizontal")
 ggsave("Figures/cs_weight_vs_lead.png", height = 2.5, width = 4)
 
@@ -1104,6 +1145,73 @@ plot_map(SMN_stations$longitude, SMN_stations$latitude, w, ymax = 1, title = "EC
 ggsave("Figures/cs_weight_vs_stat_ifs.png", height = 1.7, width = 3.4)
 
 
+# plot station with highest weight at each location
+
+w <- cbind(rowSums(results1$w$wtd[lt, , 1:11]), 
+           rowSums(results1$w$wtd[lt, , 22:32]), 
+           rowSums(results1$w$wtd[lt, , 33:83]))
+w <- w[stat_list %in% SMN_stations$nat_abbr, ]
+plot_map2 <- function(lons, lats, z, title = NULL){
+  
+  ## elevation data
+  #dem <- elevation_30s(country = "CHE", path = tempdir())
+  dem <- elevation_global(res = 0.5, path = tempdir())
+  
+  xmin <- 5.8  # Western edge
+  xmax <- 10.5 # Eastern edge
+  ymin <- 45.8 # Southern edge
+  ymax <- 47.9 # Northern edge
+  
+  region_extent <- terra::ext(xmin, xmax, ymin, ymax)
+  cropped_dem <- terra::crop(dem, region_extent)
+  dem_df <- as.data.frame(cropped_dem, xy = TRUE)
+  
+  colnames(dem_df) <- c("lon", "lat", "elevation")
+  
+  ## boundary data
+  switzerland <- ne_countries(scale = "large", country = "Switzerland", returnclass = "sf")
+  
+  ## plot data
+  z <- apply(z, 1, which.max)
+  z[z == 1] <- c("COSMO-1E")
+  z[z == 2] <- c("COSMO-2E")
+  z[z == 3] <- c("ECMWF IFS")
+  df <- data.frame(lat = lats, lon = lons, Model = z)
+  
+  # Plot the elevation data
+  plot_obj <- 
+    ggplot() +
+    geom_raster(data = dem_df, aes(x = lon, y = lat, fill = elevation)) +
+    geom_sf(data = switzerland, fill = NA, color = "black") +
+    geom_point(data = df, aes(lon, lat, shape = Model, color = Model), size = 2) +
+    scale_x_continuous(name = "Longitude", expand = c(0, 0)) +
+    scale_y_continuous(name = "Latitude", expand = c(0, 0)) +
+    scale_fill_gradient(name = "Elevation (m)", low = "white", high = "grey40") +
+    theme_minimal() +
+    theme(panel.border = element_rect(color = "black", fill = NA))
+  
+  
+  #world <- map_data("world")
+  #ind <- (world$long >= xmin & world$long <= xmax) & (world$lat >= ymin & world$lat <= ymax)
+  #world <- world[ind, ]
+  
+  #plot_obj <- ggplot() + borders("world") +
+  #coord_fixed(ylim = range(lats), xlim = range(lons)) +
+  #geom_point(data = df, aes(lon, lat, fill = z), shape = 21) +
+  #scale_fill_gradient(low = "white", high = "red", limits = c(ymin, ymax),
+  #                   guide_colorbar(frame.colour = "black", ticks.colour = "black")) +
+  #theme_void() + theme(legend.title = element_blank(),
+  #                     panel.border = element_rect(colour = "black", fill = NA, linewidth = 1),
+  #                     legend.key.width = unit(0.3, "in")) +
+  #ggtitle(title)
+  
+  return(plot_obj)
+  
+}
+plot_map2(SMN_stations$longitude, SMN_stations$latitude, w)
+ggsave("Figures/cs_weight_vs_stat.png", height = 3*1.2, width = 5*1.2)
+
+
 ### plot weights vs mse
 
 lt <- 18
@@ -1126,10 +1234,11 @@ ggplot(df) + geom_point(aes(x = s, y = w, col = mth, shape = as.factor(control))
   scale_y_continuous(name = "Weight", limits = c(0, 0.07)) +
   scale_shape_manual(values = c(19, 4)) +
   theme_bw() +
-  theme(panel.grid = element_blank(),
-        legend.title = element_blank(),
+  theme(legend.title = element_blank(),
         legend.justification = c(0.5, 1),
         legend.position = c(0.5, 0.99),
+        legend.background = element_rect(fill = "transparent", color = NA),
+        legend.key = element_rect(fill = "transparent", color = NA),
         legend.direction="horizontal") +
   guides(shape = "none")
 ggsave("Figures/cs_weight_vs_mse.png", height = 2.5, width = 4)
@@ -1189,14 +1298,15 @@ w <- cbind(rowSums(w[, 1:11]), rowSums(w[, 12:32]), rowSums(w[, 33:83]))
 df <- data.frame(lt = 1:33, 
                  w = as.vector(w),
                  mth = rep(c("COSMO-1E", "COSMO-2E", "ECMWF IFS"), each = 33))
-ggplot(df) + geom_line(aes(x = lt, y = w, col = mth)) +
+ggplot(df) + geom_line(aes(x = lt, y = w, col = mth, linetype = mth)) +
   scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
   scale_y_continuous(name = "Weight", limits = c(0, 1), expand = c(0, 0)) +
   theme_bw() +
-  theme(panel.grid = element_blank(),
-        legend.title = element_blank(),
+  theme(legend.title = element_blank(),
         legend.justification = c(0.5, 1),
         legend.position = c(0.5, 0.99),
+        legend.background = element_rect(fill = "transparent", color = NA),
+        legend.key = element_rect(fill = "transparent", color = NA),
         legend.direction="horizontal")
 ggsave("Figures/cs_mvweight_vs_lead.png", height = 2.5, width = 4)
 
@@ -1210,15 +1320,15 @@ dat <- dat %>% # restrict attention to stations with complete set of observation
   filter(n() == 1030) %>% 
   ungroup() %>% filter(reftime >= "2022-06-01", nat_abbr %in% stat_list)
 
-y <- dat %>% select(nat_abbr, obs) %>% 
+y <- dat %>% dplyr::select(nat_abbr, obs) %>% 
   group_by(nat_abbr) %>%
   mutate(row = row_number()) %>%
   pivot_wider(names_from = nat_abbr, values_from = obs) %>%
-  select(-row) %>% as.matrix()
+  dplyr::select(-row) %>% as.matrix()
 
 x <- lapply(stat_list, function(z) {
   dat %>% filter(nat_abbr == z) %>% 
-    select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>%
+    dplyr::select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>%
     cbind() %>% as.matrix()
 }) %>% simplify2array() %>% aperm(c(1, 3, 2))
 
@@ -1234,10 +1344,11 @@ ggplot(df) + geom_point(aes(x = s, y = w, col = mth, shape = as.factor(control))
   scale_y_continuous(name = "Weight", limits = c(0, 0.1)) +
   scale_shape_manual(values = c(19, 4)) +
   theme_bw() +
-  theme(panel.grid = element_blank(),
-        legend.title = element_blank(),
+  theme(legend.title = element_blank(),
         legend.justification = c(0.5, 1),
         legend.position = c(0.5, 0.99),
+        legend.background = element_rect(fill = "transparent", color = NA),
+        legend.key = element_rect(fill = "transparent", color = NA),
         legend.direction="horizontal") +
   guides(shape = "none")
 ggsave("Figures/cs_mvweight_vs_mse.png", height = 5*0.51, width = 8*0.51)
@@ -1247,28 +1358,29 @@ ggsave("Figures/cs_mvweight_vs_mse.png", height = 5*0.51, width = 8*0.51)
 
 s <- apply(results1$crps, c(1, 3), mean)
 s <- s[, -c(1, 8)]
-colnames(s) <- c("COSMO-1E", "COSMO-2E", "ECMWF IFS", "Multi-model", "Linear pool", "Weighted")
+colnames(s) <- c("COSMO-1E", "COSMO-2E", "ECMWF IFS", "LP  Equal", "LP Discrete", "LP Point")
 
 df <- data.frame(lt = 1:33, s = as.vector(s), mth = rep(colnames(s), each = 33))
-ggplot(df) + geom_line(aes(x = lt, y = s, col = mth)) +
+ggplot(df) + geom_line(aes(x = lt, y = s, col = mth, linetype = mth)) +
   scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
   scale_y_continuous(name = "CRPS (m/s)", limits = c(0.5, 2)) +
   theme_bw() +
-  theme(panel.grid = element_blank(),
-        legend.title = element_blank(),
+  theme(legend.title = element_blank(),
         legend.justification = c(0.5, 1),
-        legend.position = c(0.5, 0.99)) +
+        legend.position = c(0.5, 0.99),
+        legend.background = element_rect(fill = "transparent", color = NA),
+        legend.key = element_rect(fill = "transparent", color = NA)) +
   guides(col = guide_legend(nrow = 2, byrow = TRUE))
 ggsave("Figures/cs_crps_vs_lead.png", height = 5*0.5, width = 8*0.5)
 range(1 - s[, 5]/s[, 1])
 range(1 - s[, 6]/s[, 5])
 
 
-### plot crpss of order-statistics approach
+### plot crps of order-statistics approach
 
 s <- apply(results1$crps, c(1, 3), mean)
-s <- 1 - s[, c(6, 7, 8)]/s[, 5]
-range(s)
+s <- s[, c(5, 6, 7, 8)]
+colnames(s) <- c("LP  Equal", "LP Discrete", "LP Point", "LP Ordered")
 
 df <- data.frame(lt = 1:33, s = as.vector(s), mth = rep(c("Linear pool", "Weighted", "Weighted (OS)"), each = 33))
 ggplot(df) + geom_line(aes(x = lt, y = s, col = mth)) +
@@ -1281,6 +1393,18 @@ ggplot(df) + geom_line(aes(x = lt, y = s, col = mth)) +
         legend.justification = c(0.5, 1),
         legend.position = c(0.5, 0.99),
         legend.direction="horizontal")
+
+df <- data.frame(lt = 1:33, s = as.vector(s), mth = rep(colnames(s), each = 33))
+ggplot(df) + geom_line(aes(x = lt, y = s, col = mth, linetype = mth)) +
+  scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
+  scale_y_continuous(name = "CRPS (m/s)", limits = c(0.5, 1.3)) +
+  theme_bw() +
+  theme(legend.title = element_blank(),
+        legend.justification = c(0.5, 1),
+        legend.position = c(0.5, 0.99),
+        legend.background = element_rect(fill = "transparent", color = NA),
+        legend.key = element_rect(fill = "transparent", color = NA)) +
+  guides(col = guide_legend(nrow = 2, byrow = TRUE))
 ggsave("Figures/cs_wcrpss_vs_lead.png", height = 5*0.5, width = 8*0.5)
 
 
@@ -1288,17 +1412,18 @@ ggsave("Figures/cs_wcrpss_vs_lead.png", height = 5*0.5, width = 8*0.5)
 
 s <- results3$es
 s <- s[, -1]
-colnames(s) <- c("COSMO-1E", "COSMO-2E", "ECMWF IFS", "Multi-model", "Linear pool", "Weighted")
+colnames(s) <- c("COSMO-1E", "COSMO-2E", "ECMWF IFS", "LP  Equal", "LP Discrete", "LP Point")
 
 df <- data.frame(lt = 1:33, s = as.vector(s), mth = rep(colnames(s), each = 33))
-ggplot(df) + geom_line(aes(x = lt, y = s, col = mth)) +
+ggplot(df) + geom_line(aes(x = lt, y = s, col = mth, linetype = mth)) +
   scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
-  scale_y_continuous(name = "Energy score", limits = c(8, 24)) +
+  scale_y_continuous(name = "Energy score", limits = c(8, 22)) +
   theme_bw() +
-  theme(panel.grid = element_blank(),
-        legend.title = element_blank(),
+  theme(legend.title = element_blank(),
         legend.justification = c(0.5, 1),
-        legend.position = c(0.5, 0.99)) +
+        legend.position = c(0.5, 0.99),
+        legend.background = element_rect(fill = "transparent", color = NA),
+        legend.key = element_rect(fill = "transparent", color = NA)) +
   guides(col = guide_legend(nrow = 2, byrow = TRUE))
 ggsave("Figures/cs_es_vs_lead.png", height = 5*0.5, width = 8*0.5)
 1 - s[, 5]/s[, 1]
@@ -1309,18 +1434,23 @@ ggsave("Figures/cs_es_vs_lead.png", height = 5*0.5, width = 8*0.5)
 ### plot weights of order statistics
 
 lt <- 18
-w <- colMeans(results1$w$ord[lt, , 1:11])
+#w <- colMeans(results1$w$ord[lt, , 1:11])
 #w <- colMeans(results1$w$ord[lt, , 12:32])
-#w <- colMeans(results1$w$ord[lt, , 33:83])
+w <- colMeans(results1$w$ord[lt, , 33:83])
 M <- length(w)
 df <- data.frame(ord = 1:M, w = w)
 ggplot(df) + geom_bar(aes(x = ord, y = w), stat = "identity") + 
-  scale_x_continuous(name = "Order statistic", breaks = 1:M, labels = 1:M, expand = c(0, 0)) +
+  #scale_x_continuous(name = "Order statistic", breaks = 1:M, labels = 1:M, expand = c(0, 0)) +
+  #scale_x_continuous(name = "Order statistic", breaks = c(1, 5, 10, 15, 21), 
+  #                   labels = c(1, 5, 10, 15, 21), expand = c(0, 0)) +
+  scale_x_continuous(name = "Order statistic", breaks = c(1, seq(10, 40, 10), 51), 
+                     labels = c(1, seq(10, 40, 10), 51), expand = c(0, 0)) +
   scale_y_continuous(name = "Weight", limits = c(0, 0.1), expand = c(0, 0)) +
+  ggtitle("ECMWF IFS") +
   theme_bw() +
-  theme(panel.grid = element_blank()) +
-  ggtitle("COSMO-1E")
-ggsave("Figures/cs_weight_vs_ord_c1.png", height = 5*0.5 + 0.3, width = 8*0.5)
+  theme(panel.grid = element_blank(),
+        plot.title = element_text(size = 12))
+ggsave("Figures/cs_weight_vs_ord_ifs.png", height = 5*0.4 + 0.3, width = 8*0.4)
 
 
 ### plot average cdf before and after weighting
@@ -1375,25 +1505,29 @@ y <- dat$obs
 # COSMO-1E
 x <- as.matrix(dat$`COSMO-1E`)
 pit <- rowMeans(x < y) + runif(length(y))*(rowMeans(x <= y) - rowMeans(x < y))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "COSMO-1E")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "COSMO-1E") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_c1.png", height = 7*0.25, width = 8*0.25)
 
 # COSMO-2E
 x <- as.matrix(dat$`COSMO-2E`)
 pit <- rowMeans(x < y) + runif(length(y))*(rowMeans(x <= y) - rowMeans(x < y))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "COSMO-2E")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "COSMO-2E") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_c2.png", height = 7*0.25, width = 8*0.25)
 
 # IFS
 x <- as.matrix(dat$ECMWF_IFS)
 pit <- rowMeans(x < y) + runif(length(y))*(rowMeans(x <= y) - rowMeans(x < y))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "ECMWF IFS")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "ECMWF IFS") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_ifs.png", height = 7*0.25, width = 8*0.25)
 
 # Multi-model
 x <- cbind(as.matrix(dat$`COSMO-1E`), as.matrix(dat$`COSMO-2E`), as.matrix(dat$ECMWF_IFS))
 pit <- rowMeans(x < y) + runif(length(y))*(rowMeans(x <= y) - rowMeans(x < y))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "Multi-model")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "LP Equal") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_mm.png", height = 7*0.25, width = 8*0.25)
 
 # Linear pool
@@ -1401,14 +1535,16 @@ w <- results1$w$lp[lt, , ]
 w <- cbind(replicate(11, w[, 1]/11), replicate(21, w[, 2]/21), replicate(51, w[, 3]/51))
 w <- lapply(1:nrow(w), function(i) replicate(361, w[i, ]) %>% t()) %>% do.call(rbind, .)
 pit <- rowSums(w*(x < y)) + runif(length(y))*(rowMeans(w*(x <= y)) - rowMeans(w*(x < y)))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "Linear pool")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "LP Discrete") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_lp.png", height = 7*0.25, width = 8*0.25)
 
 # Weighted
 w <- results1$w$wtd[lt, , ]
 w <- lapply(1:nrow(w), function(i) replicate(361, w[i, ]) %>% t()) %>% do.call(rbind, .)
 pit <- rowSums(w*(x < y)) + runif(length(y))*(rowMeans(w*(x <= y)) - rowMeans(w*(x < y)))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "Weighted (EM)")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "LP Point") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_wtd.png", height = 7*0.25, width = 8*0.25)
 
 # Weighted
@@ -1419,7 +1555,8 @@ x <- cbind(x1, x2, x3)
 w <- results1$w$ord[lt, , ]
 w <- lapply(1:nrow(w), function(i) replicate(361, w[i, ]) %>% t()) %>% do.call(rbind, .)
 pit <- rowSums(w*(x < y)) + runif(length(y))*(rowMeans(w*(x <= y)) - rowMeans(w*(x < y)))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "Weighted (OS)")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "LP Ordered") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_ord.png", height = 7*0.25, width = 8*0.25)
 
 
@@ -1437,14 +1574,15 @@ w <- cbind(rowSums(w[, 1:11]), rowSums(w[, 12:32]), rowSums(w[, 33:83]))
 df <- data.frame(lt = 1:33, 
                  w = as.vector(w),
                  mth = rep(c("COSMO-1E", "COSMO-2E", "ECMWF IFS"), each = 33))
-ggplot(df) + geom_line(aes(x = lt, y = w, col = mth)) +
+ggplot(df) + geom_line(aes(x = lt, y = w, col = mth, linetype = mth)) +
   scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
   scale_y_continuous(name = "Weight", limits = c(0, 1), expand = c(0, 0)) +
   theme_bw() +
-  theme(panel.grid = element_blank(),
-        legend.title = element_blank(),
+  theme(legend.title = element_blank(),
         legend.justification = c(0.5, 1),
         legend.position = c(0.5, 0.99),
+        legend.background = element_rect(fill = "transparent", color = NA),
+        legend.key = element_rect(fill = "transparent", color = NA),
         legend.direction="horizontal")
 ggsave("Figures/cs_weight_vs_lead_mbm.png", height = 2.5, width = 4)
 
@@ -1469,6 +1607,16 @@ plot_map(SMN_stations$longitude, SMN_stations$latitude, w, ymax = 1, title = "EC
 ggsave("Figures/cs_weight_vs_stat_ifs_mbm.png", height = 1.7, width = 3.4)
 
 
+# plot station with highest weight at each location
+
+w <- cbind(rowSums(results1_mbm$w$wtd[lt, , 1:11]), 
+           rowSums(results1_mbm$w$wtd[lt, , 22:32]), 
+           rowSums(results1_mbm$w$wtd[lt, , 33:83]))
+w <- w[stat_list %in% SMN_stations$nat_abbr, ]
+plot_map2(SMN_stations$longitude, SMN_stations$latitude, w)
+ggsave("Figures/cs_weight_vs_stat_mbm.png", height = 3*1.2, width = 5*1.2)
+
+
 ### plot mv weights vs lead time
 
 w <- results3_mbm$w$wtd
@@ -1476,14 +1624,15 @@ w <- cbind(rowSums(w[, 1:11]), rowSums(w[, 12:32]), rowSums(w[, 33:83]))
 df <- data.frame(lt = 1:33, 
                  w = as.vector(w),
                  mth = rep(c("COSMO-1E", "COSMO-2E", "ECMWF IFS"), each = 33))
-ggplot(df) + geom_line(aes(x = lt, y = w, col = mth)) +
+ggplot(df) + geom_line(aes(x = lt, y = w, col = mth, linetype = mth)) +
   scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
   scale_y_continuous(name = "Weight", limits = c(0, 1), expand = c(0, 0)) +
   theme_bw() +
-  theme(panel.grid = element_blank(),
-        legend.title = element_blank(),
+  theme(legend.title = element_blank(),
         legend.justification = c(0.5, 1),
-        legend.position = c(0.5, 0.99),
+        legend.position = c(0.5, 0.99),        
+        legend.background = element_rect(fill = "transparent", color = NA),
+        legend.key = element_rect(fill = "transparent", color = NA),
         legend.direction="horizontal")
 ggsave("Figures/cs_mvweight_vs_lead_mbm.png", height = 2.5, width = 4)
 
@@ -1493,40 +1642,53 @@ ggsave("Figures/cs_mvweight_vs_lead_mbm.png", height = 2.5, width = 4)
 
 s <- apply(results1_mbm$crps, c(1, 3), mean)
 s <- s[, -c(1, 8)]
-colnames(s) <- c("COSMO-1E", "COSMO-2E", "ECMWF IFS", "Multi-model", "Linear pool", "Weighted")
+colnames(s) <- c("COSMO-1E", "COSMO-2E", "ECMWF IFS", "LP  Equal", "LP Discrete", "LP Point")
 
 df <- data.frame(lt = 1:33, s = as.vector(s), mth = rep(colnames(s), each = 33))
-ggplot(df) + geom_line(aes(x = lt, y = s, col = mth)) +
+ggplot(df) + geom_line(aes(x = lt, y = s, col = mth, linetype = mth)) +
   scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
-  scale_y_continuous(name = "CRPS (m/s)", limits = c(0.4, 1.2)) +
+  scale_y_continuous(name = "CRPS (m/s)", limits = c(0.5, 0.95)) +
   theme_bw() +
-  theme(panel.grid = element_blank(),
-        legend.title = element_blank(),
+  theme(legend.title = element_blank(),
         legend.justification = c(0.5, 1),
-        legend.position = c(0.5, 0.99)) +
+        legend.position = c(0.5, 0.99),
+        legend.background = element_rect(fill = "transparent", color = NA),
+        legend.key = element_rect(fill = "transparent", color = NA)) +
   guides(col = guide_legend(nrow = 2, byrow = TRUE))
 ggsave("Figures/cs_crps_vs_lead_mbm.png", height = 5*0.5, width = 8*0.5)
 range(1 - s[, 5]/s[, 1])
 range(1 - s[, 6]/s[, 1])
 
 
-### plot crpss of order-statistics approach
+### plot crps of order-statistics approach
 
 s <- apply(results1_mbm$crps, c(1, 3), mean)
-s <- 1 - s[, c(6, 7, 8)]/s[, 5]
-range(s)
+s <- s[, c(5, 6, 7, 8)]
+colnames(s) <- c("LP  Equal", "LP Discrete", "LP Point", "LP Ordered")
 
 df <- data.frame(lt = 1:33, s = as.vector(s), mth = rep(c("Linear pool", "Weighted", "Weighted (OS)"), each = 33))
 ggplot(df) + geom_line(aes(x = lt, y = s, col = mth)) +
   geom_hline(aes(yintercept = 0), lty = "dotted") +
   scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
-  scale_y_continuous(name = "CRPSS", limits = c(-0.1, 0.25)) +
+  scale_y_continuous(name = "CRPSS", limits = c(-0.05, 0.5)) +
   theme_bw() +
   theme(panel.grid = element_blank(),
         legend.title = element_blank(),
         legend.justification = c(0.5, 1),
         legend.position = c(0.5, 0.99),
         legend.direction="horizontal")
+
+df <- data.frame(lt = 1:33, s = as.vector(s), mth = rep(colnames(s), each = 33))
+ggplot(df) + geom_line(aes(x = lt, y = s, col = mth, linetype = mth)) +
+  scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
+  scale_y_continuous(name = "CRPS (m/s)", limits = c(0.45, 0.85)) +
+  theme_bw() +
+  theme(legend.title = element_blank(),
+        legend.justification = c(0.5, 1),
+        legend.position = c(0.5, 0.99),
+        legend.background = element_rect(fill = "transparent", color = NA),
+        legend.key = element_rect(fill = "transparent", color = NA)) +
+  guides(col = guide_legend(nrow = 2, byrow = TRUE))
 ggsave("Figures/cs_wcrpss_vs_lead_mbm.png", height = 5*0.5, width = 8*0.5)
 
 
@@ -1534,17 +1696,18 @@ ggsave("Figures/cs_wcrpss_vs_lead_mbm.png", height = 5*0.5, width = 8*0.5)
 
 s <- results3_mbm$es
 s <- s[, -1]
-colnames(s) <- c("COSMO-1E", "COSMO-2E", "ECMWF IFS", "Multi-model", "Linear pool", "Weighted")
+colnames(s) <- c("COSMO-1E", "COSMO-2E", "ECMWF IFS", "LP  Equal", "LP Discrete", "LP Point")
 
 df <- data.frame(lt = 1:33, s = as.vector(s), mth = rep(colnames(s), each = 33))
-ggplot(df) + geom_line(aes(x = lt, y = s, col = mth)) +
+ggplot(df) + geom_line(aes(x = lt, y = s, col = mth, linetype = mth)) +
   scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
-  scale_y_continuous(name = "Energy score", limits = c(6, 13)) +
+  scale_y_continuous(name = "Energy score", limits = c(6.5, 11.3)) +
   theme_bw() +
-  theme(panel.grid = element_blank(),
-        legend.title = element_blank(),
+  theme(legend.title = element_blank(),
         legend.justification = c(0.5, 1),
-        legend.position = c(0.5, 0.99)) +
+        legend.position = c(0.5, 0.99),
+        legend.background = element_rect(fill = "transparent", color = NA),
+        legend.key = element_rect(fill = "transparent", color = NA)) +
   guides(col = guide_legend(nrow = 2, byrow = TRUE))
 ggsave("Figures/cs_es_vs_lead_mbm.png", height = 5*0.5, width = 8*0.5)
 1 - s[, 5]/s[, 1]
@@ -1561,12 +1724,18 @@ w <- colMeans(results1_mbm$w$ord[lt, , 33:83])
 M <- length(w)
 df <- data.frame(ord = 1:M, w = w)
 ggplot(df) + geom_bar(aes(x = ord, y = w), stat = "identity") + 
-  scale_x_continuous(name = "Order statistic", breaks = 1:M, labels = 1:M, expand = c(0, 0)) +
+  #scale_x_continuous(name = "Order statistic", breaks = 1:M, labels = 1:M, expand = c(0, 0)) +
+  scale_x_continuous(name = "Order statistic", breaks = c(1, 5, 10, 15, 21), 
+                     labels = c(1, 5, 10, 15, 21), expand = c(0, 0)) +
+  #scale_x_continuous(name = "Order statistic", breaks = c(1, seq(10, 40, 10), 51), 
+  #                   labels = c(1, seq(10, 40, 10), 51), expand = c(0, 0)) +
   scale_y_continuous(name = "Weight", limits = c(0, 0.1), expand = c(0, 0)) +
+  ggtitle("COSMO-2E") +
   theme_bw() +
-  theme(panel.grid = element_blank()) +
-  ggtitle("ECMWF IFS")
-ggsave("Figures/cs_weight_vs_ord_ifs_mbm.png", height = 5*0.5 + 0.3, width = 8*0.5)
+  theme(panel.grid = element_blank(),
+        plot.title = element_text(size = 12))
+ggsave("Figures/cs_weight_vs_ord_c2_mbm.png", height = 5*0.4 + 0.3, width = 8*0.4)
+
 
 
 ### PIT histograms
@@ -1598,20 +1767,20 @@ get_mbm_dat <- function(tr_dat, ts_dat, stat_ids) {
     y <- c(y, ts_dat_i$obs)
     
     # COSMO-1E 
-    x_tr <- tr_dat_i %>% select(`COSMO-1E`) %>% as.matrix()
-    x <- ts_dat_i %>% select(`COSMO-1E`) %>% as.matrix()
+    x_tr <- tr_dat_i %>% dplyr::select(`COSMO-1E`) %>% as.matrix()
+    x <- ts_dat_i %>% dplyr::select(`COSMO-1E`) %>% as.matrix()
     x <- mbm_mom_est(y_tr, x_tr, x)
     x_c1 <- rbind(x_c1, x)
     
     # COSMO-2E 
-    x_tr <- tr_dat_i %>% select(`COSMO-2E`) %>% as.matrix()
-    x <- ts_dat_i %>% select(`COSMO-2E`) %>% as.matrix()
+    x_tr <- tr_dat_i %>% dplyr::select(`COSMO-2E`) %>% as.matrix()
+    x <- ts_dat_i %>% dplyr::select(`COSMO-2E`) %>% as.matrix()
     x <- mbm_mom_est(y_tr, x_tr, x)
     x_c2 <- rbind(x_c2, x)
     
     # IFS
-    x_tr <- tr_dat_i %>% select(ECMWF_IFS) %>% as.matrix()
-    x <- ts_dat_i %>% select(ECMWF_IFS) %>% as.matrix()
+    x_tr <- tr_dat_i %>% dplyr::select(ECMWF_IFS) %>% as.matrix()
+    x <- ts_dat_i %>% dplyr::select(ECMWF_IFS) %>% as.matrix()
     x <- mbm_mom_est(y_tr, x_tr, x)
     x_ifs <- rbind(x_ifs, x)
   }
@@ -1626,25 +1795,29 @@ y <- x_mbm$y
 # COSMO-1E
 x <- x_mbm$c1
 pit <- rowMeans(x < y) + runif(length(y))*(rowMeans(x <= y) - rowMeans(x < y))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "COSMO-1E")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "COSMO-1E") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_c1_mbm.png", height = 7*0.25, width = 8*0.25)
 
 # COSMO-2E
 x <- x_mbm$c2
 pit <- rowMeans(x < y) + runif(length(y))*(rowMeans(x <= y) - rowMeans(x < y))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "COSMO-2E")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "COSMO-2E") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_c2_mbm.png", height = 7*0.25, width = 8*0.25)
 
 # IFS
 x <- x_mbm$ifs
 pit <- rowMeans(x < y) + runif(length(y))*(rowMeans(x <= y) - rowMeans(x < y))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "ECMWF IFS")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "ECMWF IFS") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_ifs_mbm.png", height = 7*0.25, width = 8*0.25)
 
 # Multi-model
 x <- cbind(x_mbm$c1, x_mbm$c2, x_mbm$ifs)
 pit <- rowMeans(x < y) + runif(length(y))*(rowMeans(x <= y) - rowMeans(x < y))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "Multi-model")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "LP Equal") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_mm_mbm.png", height = 7*0.25, width = 8*0.25)
 
 # Linear pool
@@ -1652,14 +1825,16 @@ w <- results1_mbm$w$lp[lt, , ]
 w <- cbind(replicate(11, w[, 1]/11), replicate(21, w[, 2]/21), replicate(51, w[, 3]/51))
 w <- lapply(1:nrow(w), function(i) replicate(361, w[i, ]) %>% t()) %>% do.call(rbind, .)
 pit <- rowSums(w*(x < y)) + runif(length(y))*(rowMeans(w*(x <= y)) - rowMeans(w*(x < y)))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "Linear pool")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "LP Discrete") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_lp_mbm.png", height = 7*0.25, width = 8*0.25)
 
 # Weighted
 w <- results1_mbm$w$wtd[lt, , ]
 w <- lapply(1:nrow(w), function(i) replicate(361, w[i, ]) %>% t()) %>% do.call(rbind, .)
 pit <- rowSums(w*(x < y)) + runif(length(y))*(rowMeans(w*(x <= y)) - rowMeans(w*(x < y)))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "Weighted (EM)")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "LP Point") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_wtd_mbm.png", height = 7*0.25, width = 8*0.25)
 
 # Weighted
@@ -1670,7 +1845,8 @@ x <- cbind(x1, x2, x3)
 w <- results1_mbm$w$ord[lt, , ]
 w <- lapply(1:nrow(w), function(i) replicate(361, w[i, ]) %>% t()) %>% do.call(rbind, .)
 pit <- rowSums(w*(x < y)) + runif(length(y))*(rowMeans(w*(x <= y)) - rowMeans(w*(x < y)))
-pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "Weighted (OS)")
+pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, xlab = NULL, yticks = FALSE, ylab = NULL, title = "LP Ordered") +
+  theme(plot.title = element_text(size = 11))
 ggsave("Figures/cs_pit_ord_mbm.png", height = 7*0.25, width = 8*0.25)
 
 

@@ -76,17 +76,18 @@ load_data <- function(lt = NULL, stat_id = NULL, path = "C:/Users/sa20i493/Docum
 
   if (!is.null(stat_id)) {
     oo <- obs %>%
+      dplyr::collect() %>%
       dplyr::filter(
         nat_abbr == stat_id,
         lubridate::hour(time) == time_of_day
-      ) %>%
-      dplyr::collect()
+      )
   } else {
     oo <- obs %>%
+      dplyr::collect() %>%
       dplyr::filter(
         lubridate::hour(time) == time_of_day
-      ) %>%
-      dplyr::collect()
+      )
+      
   }
 
   data <- ff %>% dplyr::inner_join(oo, by = c("time", "nat_abbr")) %>%
