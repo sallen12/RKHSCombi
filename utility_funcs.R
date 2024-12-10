@@ -1,11 +1,11 @@
 
+
+
+################################################################################
+##### set up functions
+
 load_data <- function(lt = NULL, stat_id = NULL, path = "C:/Users/sa20i493/Documents/Data/MeteoSwiss/") {
-
-  library(arrow)
-  library(dplyr)
-  library(tidyr)
-  library(ggplot2)
-
+  
   # unfortunately, I stored the fcsts as data.frame columns
   # therefore you cannot concatenate the three forecast sources
   # into a single dataset (as the number of members differ)
@@ -15,8 +15,8 @@ load_data <- function(lt = NULL, stat_id = NULL, path = "C:/Users/sa20i493/Docum
     simplify = FALSE
   )
   obs <- open_dataset(paste0(path, "obs"))
-
-
+  
+  
   ## read in single station
   ## (for performance, but reading in all for one lead time might work)
   ## you may want to consider repartitioning the dataset by lead time -
@@ -66,14 +66,14 @@ load_data <- function(lt = NULL, stat_id = NULL, path = "C:/Users/sa20i493/Docum
       }
     )
   }
-
-
+  
+  
   ## join the datasets, remove source column to allow for join
   ff <- lapply(ff, function(x) dplyr::select(x, -source)) %>%
     Reduce(dplyr::inner_join, .)
-
+  
   time_of_day <- unique(lubridate::hour(ff$time))
-
+  
   if (!is.null(stat_id)) {
     oo <- obs %>%
       dplyr::collect() %>%
@@ -87,56 +87,29 @@ load_data <- function(lt = NULL, stat_id = NULL, path = "C:/Users/sa20i493/Docum
       dplyr::filter(
         lubridate::hour(time) == time_of_day
       )
-      
+    
   }
-
+  
   data <- ff %>% dplyr::inner_join(oo, by = c("time", "nat_abbr")) %>%
     dplyr::rename("COSMO-1E" := paste0(path, "COSMO-1E"),
                   "COSMO-2E" := paste0(path, "COSMO-2E"),
                   "ECMWF_IFS" := paste0(path, "ECMWF_IFS"))
-
+  
   return(data)
 }
 
 
-plot_crps <- function(dat) {
-  dat %>%
-   dplyr::mutate(
-     across(
-       c("COSMO-1E", "COSMO-2E", "ECMWF_IFS"),
-       function(x) {
-         SpecsVerification::EnsCrps(as.matrix(x), obs)
-       }
-     )
-   ) %>%
-   dplyr::summarize(
-     across(c("COSMO-1E", "COSMO-2E", "ECMWF_IFS"), mean),
-     .by = "lead"
-   ) %>%
-   tidyr::pivot_longer(c("COSMO-1E", "COSMO-2E", "ECMWF_IFS"), names_to = "source") %>%
-   ggplot(aes(x = source, y = value, fill = source)) +
-   geom_bar(stat = "identity") +
-   labs(y = "CRPS (m/s)") +
-   theme(legend.position = "none")
-}
-
-
-
-# functions
 get_stations <- function(lt_vec = 1:33, new = FALSE) {
   
   if (new) {
     stat_ids <- vector("list", length(lt_vec))
     
-    for (lt in lt_vec) {
-      print(lt)
-      dat <- load_data(lt, stat_id = NULL, path = "C:/Users/sa20i493/Documents/Data/MeteoSwiss/") # load dat
-      dat <- dat %>% # restrict attention to stations with complete set of observations
-        group_by(nat_abbr) %>%
-        filter(n() == 1030) %>% 
-        ungroup()
-      
-      stat_ids[[lt]] <- unique(dat$nat_abbr)
+    for (i in lt_vec) {
+      print(i)
+      dat <- load_data(i, path = "C:/Users/sa20i493/Documents/Data/MeteoSwiss/") # load dat
+      # restrict attention to stations with complete set of observations
+      dat <- dat %>% group_by(nat_abbr) %>% filter(n() == 1030) %>% ungroup()
+      stat_ids[[i]] <- unique(dat$nat_abbr)
     }
     
     stat_list <- Reduce(intersect, stat_ids)
@@ -147,6 +120,89 @@ get_stations <- function(lt_vec = 1:33, new = FALSE) {
   }
   
 }
+
+
+################################################################################
+##### wrapper to get results functions
+
+## univariate
+get_results_uv <- function(kernel, lt_vec = 1:33, stat_ids = stat_list, mbm = FALSE) {
+  w_dsc <- array(NA, c(length(lt_vec), length(stat_ids), 3))
+  w_poi <- w_ord <- array(NA, c(length(lt_vec), length(stat_ids), 83))
+  
+  crps_mat <- array(NA, c(length(lt_vec), length(stat_ids), 7))
+  dimnames(crps_mat)[[3]] <- c("C1", "C2", "IFS", "LP-Eq", "LP-Ds", "LP-Po", "LP-Or")
+  
+  for (i in seq_along(lt_vec)) {
+    lead <- lt_vec[i]
+    
+    dat <- load_data(lead, stat_id = NULL) # load dat
+    # restrict attention to stations with complete set of observations
+    dat <- dat %>% group_by(nat_abbr) %>% filter(n() == 1030) %>% ungroup()
+    
+    for (j in seq_along(stat_ids)) {
+      print(c(lead, j))
+      
+      tr_dat <- dat %>% filter(nat_abbr == stat_ids[j], reftime < "2022-06-01")
+      ts_dat <- dat %>% filter(nat_abbr == stat_ids[j], reftime >= "2022-06-01")
+      
+      if (mbm) {
+        scores <- get_mbm_scores(tr_dat, ts_dat, kernel)
+      } else {
+        scores <- get_scores(tr_dat, ts_dat, kernel)
+      }
+      
+      crps_mat[i, j, ] <- scores$crps
+      w_dsc[i, j, ] <- scores$w$dsc
+      w_poi[i, j, ] <- scores$w$poi
+      w_ord[i, j, ] <- scores$w$ord
+    }
+  }
+  
+  return(list(crps = crps_mat, w = list(lp = w_lp, wtd = w_wtd, ord = w_ord)))
+  
+}
+
+
+## multivariate
+get_results_mv <- function(kernel, lt_vec = 1:33, stat_ids = stat_list, mbm = FALSE) {
+  w_lp <- array(NA, c(length(lt_vec), 3))
+  w_wtd <- array(NA, c(length(lt_vec), 83))
+  crps_mat <- array(NA, c(length(lt_vec), length(stat_ids), 6))
+  es_mat <- array(NA, c(length(lt_vec), 6))
+  dimnames(crps_mat)[[3]] <- colnames(es_mat) <- c("C1", "C2", "IFS", "LP-Eq", "LP-Ds", "LP-Po")
+  
+  for (i in seq_along(lt_vec)) {
+    lead <- lt_vec[i]
+    print(lead)
+    
+    dat <- load_data(lead) # load dat
+    # restrict attention to stations with complete set of observations
+    dat <- dat %>% filter(nat_abbr %in% stat_ids) %>% group_by(nat_abbr) %>% filter(n() == 1030) %>% ungroup() 
+    
+    tr_dat <- dat %>% filter(reftime < "2022-06-01")
+    ts_dat <- dat %>% filter(reftime >= "2022-06-01")
+    rm(dat)
+    
+    if (mbm) {
+      scores <- get_mv_mbm_scores(tr_dat, ts_dat, stat_ids, kernel)
+    } else {
+      scores <- get_mv_scores(tr_dat, ts_dat, stat_ids, kernel)
+    }
+    
+    crps_mat[i, , ] <- scores$crps
+    es_mat[i, ] <- scores$es
+    w_lp[i, ] <- scores$w$lp
+    w_wtd[i, ] <- scores$w$wtd
+  }
+  
+  return(list(crps = crps_mat, es = es_mat, w = list(lp = w_lp, wtd = w_wtd)))
+}
+
+
+
+################################################################################
+##### kernel functions
 
 get_H <- function(x, kernel = "Gaussian") {
   M <- ncol(x)
@@ -245,6 +301,60 @@ get_mv_weights <- function(x, y, kernel = "Gaussian", ind = NULL) {
   primal(ipop(c, H, A, b, l, u, r))
 }
 
+
+################################################################################
+##### post-processing functions
+
+# member-by-member post-processing
+
+mbm_mom_est <- function(y, dat_tr, dat_ts, sc = "sqrt") {
+  
+  if (sc == "log") {
+    dat_tr <- log(dat_tr)
+    dat_ts <- log(dat_ts)
+    y <- log(y)
+  } else if (sc == "sqrt") {
+    dat_tr <- sqrt(dat_tr)
+    dat_ts <- sqrt(dat_ts)
+    y <- sqrt(y)
+  }
+  
+  xbar <- rowMeans(dat_tr)
+  ybar <- mean(y)
+  s2 <- apply(dat_tr, 1, var)
+  
+  b <- cov(xbar, y) / var(xbar)
+  a <- ybar - b*mean(xbar)
+  c <- (cov(s2, y^2) - 2*a*b*cov(s2, xbar) - (b^2)*cov(s2, xbar^2)) / var(s2)
+  d <- var(y) - c*mean(s2) - (b^2)*var(xbar)
+  
+  if (d < 0) {
+    d <- 0
+    c <- (var(y) - (b^2)*var(xbar)) / mean(s2)
+  }
+  c <- max(c, 0)
+  
+  xbar <- rowMeans(dat_ts)
+  s2 <- apply(dat_ts, 1, var)
+  gamma <- sqrt(c + d/s2)
+  newdat <- (a + b*xbar) + gamma*(dat_ts - xbar)
+  
+  if (sc == "log") {
+    newdat <- exp(newdat)
+  } else if (sc == "sqrt") {
+    newdat <- newdat^2
+  }
+  
+  return(newdat)
+}
+
+
+
+
+################################################################################
+##### evaluate functions
+
+# needed?
 get_cal <- function(y, x, w = rep(1/ncol(x), ncol(x)), type = NULL) {
   n <- length(y)
   F_y <- sapply(1:n, function(i) sum(w[x[i, ] <= y[i]]))
@@ -262,6 +372,7 @@ get_cal <- function(y, x, w = rep(1/ncol(x), ncol(x)), type = NULL) {
     Z_F
   }
 }
+
 
 get_scores <- function(tr_dat, ts_dat, kernel = "Gaussian", clim = FALSE) {
   
@@ -773,62 +884,15 @@ get_mv_mbm_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian", cl
 }
 
 
-# member-by-member post-processing
 
-mbm_mom_est <- function(y, dat_tr, dat_ts, sc = "sqrt") {
-  
-  if (sc == "log") {
-    dat_tr <- log(dat_tr)
-    dat_ts <- log(dat_ts)
-    y <- log(y)
-  } else if (sc == "sqrt") {
-    dat_tr <- sqrt(dat_tr)
-    dat_ts <- sqrt(dat_ts)
-    y <- sqrt(y)
-  }
-  
-  xbar <- rowMeans(dat_tr)
-  ybar <- mean(y)
-  s2 <- apply(dat_tr, 1, var)
-  
-  b <- cov(xbar, y) / var(xbar)
-  a <- ybar - b*mean(xbar)
-  c <- (cov(s2, y^2) - 2*a*b*cov(s2, xbar) - (b^2)*cov(s2, xbar^2)) / var(s2)
-  d <- var(y) - c*mean(s2) - (b^2)*var(xbar)
-  
-  if (d < 0) {
-    d <- 0
-    c <- (var(y) - (b^2)*var(xbar)) / mean(s2)
-  }
-  c <- max(c, 0)
-  
-  xbar <- rowMeans(dat_ts)
-  s2 <- apply(dat_ts, 1, var)
-  gamma <- sqrt(c + d/s2)
-  newdat <- (a + b*xbar) + gamma*(dat_ts - xbar)
-  
-  if (sc == "log") {
-    newdat <- exp(newdat)
-  } else if (sc == "sqrt") {
-    newdat <- newdat^2
-  }
-  
-  return(newdat)
-}
+################################################################################
+##### plot functions
 
+plot_map <- function(lons, lats, z, title = NULL, filename = NULL){
 
-
-plot_map <- function(lons, lats, z, title = NULL){
-  if (is.matrix(z)) z <- as.vector(z)
-  
-  library(terra)
-  library(viridis)
-  library(rnaturalearth)
-  library(sf)  # For handling vector data
-  
   ## elevation data
-  #dem <- elevation_30s(country = "CHE", path = tempdir())
-  dem <- elevation_global(res = 0.5, path = tempdir())
+  #dem <- geodata::elevation_30s(country = "CHE", path = tempdir())
+  dem <- geodata::elevation_global(res = 0.5, path = tempdir())
   
   xmin <- 5.8  # Western edge
   xmax <- 10.5 # Eastern edge
@@ -842,24 +906,276 @@ plot_map <- function(lons, lats, z, title = NULL){
   colnames(dem_df) <- c("lon", "lat", "elevation")
   
   ## boundary data
-  switzerland <- ne_countries(scale = "large", country = "Switzerland", returnclass = "sf")
+  switzerland <- rnaturalearth::ne_countries(scale = "large", country = "Switzerland", returnclass = "sf")
   
-  ## plot data
-  df <- data.frame(lat = lats, lon = lons, z = z)
+  maxplot <- is.matrix(z)
   
-  # Plot the elevation data
-  plot_obj <- 
-    ggplot() +
-    geom_raster(data = dem_df, aes(x = lon, y = lat, fill = elevation)) +
-    geom_sf(data = switzerland, fill = NA, color = "black") +
-    geom_point(data = df, aes(lon, lat, fill = z), shape = 21) +
-    scale_x_continuous(name = "Longitude", expand = c(0, 0)) +
-    scale_y_continuous(name = "Latitude", expand = c(0, 0)) +
-    scale_fill_gradient(name = "Elevation (m)", low = "white", high = "grey40") +
-    theme_minimal() +
-    theme(panel.border = element_rect(color = "black", fill = NA))
+  if (maxplot) {
+
+    # plot data
+    z <- apply(z, 1, which.max)
+    z[z == 1] <- c("COSMO-1E")
+    z[z == 2] <- c("COSMO-2E")
+    z[z == 3] <- c("ECMWF IFS")
+    df <- data.frame(lat = lats, lon = lons, Model = z)
+    
+    # plot
+    plot_obj <- 
+      ggplot() +
+      geom_raster(data = dem_df, aes(x = lon, y = lat, fill = elevation)) +
+      geom_sf(data = switzerland, fill = NA, color = "black") +
+      geom_point(data = df, aes(lon, lat, shape = Model, color = Model), size = 2) +
+      scale_x_continuous(name = "Longitude", expand = c(0, 0)) +
+      scale_y_continuous(name = "Latitude", expand = c(0, 0)) +
+      scale_fill_gradient(name = "Elevation (m)", low = "white", high = "grey40") +
+      theme_minimal() +
+      theme(panel.border = element_rect(color = "black", fill = NA))
+    
+  } else {
+    
+    # plot data
+    df <- data.frame(lat = lats, lon = lons, z = z)
+    plot_obj <- 
+      ggplot() +
+      geom_raster(data = dem_df, aes(x = lon, y = lat, fill = elevation)) +
+      geom_sf(data = switzerland, fill = NA, color = "black") +
+      geom_point(data = df, aes(lon, lat, fill = z), shape = 21) +
+      scale_x_continuous(name = "Longitude", expand = c(0, 0)) +
+      scale_y_continuous(name = "Latitude", expand = c(0, 0)) +
+      scale_fill_gradient(name = "Elevation (m)", low = "white", high = "grey40") +
+      theme_minimal() +
+      theme(panel.border = element_rect(color = "black", fill = NA))
+  }
   
-  
-  return(plot_obj)
+
+  if (!is.null(filename)) {
+    if (maxplot) {
+      ggsave(plot = plot_obj, filename, height = 3.6, width = 6)
+    } else {
+      ggsave(plot = plot_obj, filename, height = 3, width = 5)
+    }
+  } else {
+    return(plot_obj)
+  }
   
 }
+
+# plot weight vs lead time
+plot_w_vs_lt <- function(w, filename = NULL) {
+  
+  if (ncol(w) == 83) w <- cbind(rowSums(w[, 1:11]), rowSums(w[, 12:32]), rowSums(w[, 33:83]))
+  
+  df <- data.frame(lt = 1:33, 
+                   w = as.vector(w),
+                   mth = rep(c("COSMO-1E", "COSMO-2E", "ECMWF IFS"), each = 33))
+  plot_obj <- ggplot(df) + 
+    geom_line(aes(x = lt, y = w, col = mth, linetype = mth)) +
+    scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
+    scale_y_continuous(name = "Weight", limits = c(0, 1), expand = c(0, 0)) +
+    theme_bw() +
+    theme(legend.title = element_blank(),
+          legend.justification = c(0.5, 1),
+          legend.position = c(0.5, 0.99),
+          legend.background = element_rect(fill = "transparent", color = NA),
+          legend.key = element_rect(fill = "transparent", color = NA),
+          legend.direction="horizontal")
+  
+  if (!is.null(filename)) {
+    ggsave(plot = plot_obj, filename, height = 2.5, width = 4)
+  } else {
+    return(plot_obj)
+  }
+}
+
+# plot weight vs mean squared error
+plot_w_vs_mse <- function(lt, uv = TRUE, ylims = c(0, 0.1), filename = NULL) {
+  
+  dat <- load_data(lt) %>% group_by(nat_abbr) %>% filter(n() == 1030) %>% 
+    ungroup() %>% filter(reftime >= "2022-06-01", nat_abbr %in% stat_list)
+  
+  if (uv) {
+    mse <- c(colMeans((dat$`COSMO-1E` - dat$obs)^2),
+             colMeans((dat$`COSMO-2E` - dat$obs)^2),
+             colMeans((dat$ECMWF_IFS - dat$obs)^2))
+    
+    w <- colMeans(results_uv$w$wtd[lt, , ])
+    
+    height <- 2.5
+    width <- 4
+  } else {
+    y <- dat %>% select(nat_abbr, obs) %>% 
+      group_by(nat_abbr) %>%
+      mutate(row = row_number()) %>%
+      pivot_wider(names_from = nat_abbr, values_from = obs) %>%
+      select(-row) %>% as.matrix()
+    
+    x <- lapply(stat_list, function(z) {
+      dat %>% filter(nat_abbr == z) %>% 
+        select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>%
+        cbind() %>% as.matrix()
+    }) %>% simplify2array() %>% aperm(c(1, 3, 2))
+    
+    mse <- colMeans(sqrt(apply((x - replicate(83, y))^2, c(1, 3), sum)))
+    
+    w <- results_mv$w$wtd[lt, ]
+    
+    height <- 2.55
+    width <- 4.08
+  }
+  
+  df <- data.frame(s = mse, w = w, 
+                   mth = c(rep("COSMO-1E", 11), rep("COSMO-2E", 21), rep("ECMWF IFS", 51)),
+                   control = c(1, rep(0, 10), 1, rep(0, 20), 1, rep(0, 50)))
+  plot_obj <- ggplot(df) + geom_point(aes(x = s, y = w, col = mth, shape = as.factor(control))) +
+    scale_x_continuous(name = "MSE") +
+    scale_y_continuous(name = "Weight", limits = ylims) +
+    scale_shape_manual(values = c(19, 4)) +
+    theme_bw() +
+    theme(legend.title = element_blank(),
+          legend.justification = c(0.5, 1),
+          legend.position = c(0.5, 0.99),
+          legend.background = element_rect(fill = "transparent", color = NA),
+          legend.key = element_rect(fill = "transparent", color = NA),
+          legend.direction="horizontal") +
+    guides(shape = "none")
+  
+  if (!is.null(filename)) {
+    ggsave(plot = plot_obj, filename, height = height, width = width)
+  } else {
+    return(plot_obj)
+  }
+}
+
+# plot score vs lead time
+plot_score_vs_lt <- function(s, uv = TRUE, ylims = c(0.5, 2), filename = NULL) {
+  
+  if (ncol(s) == 6) {
+    colnames(s) <- c("COSMO-1E", "COSMO-2E", "ECMWF IFS", "LP  Equal", "LP Discrete", "LP Point")
+  } else if (ncol(s) == 4) {
+    colnames(s) <- c("LP  Equal", "LP Discrete", "LP Point", "LP Ordered")
+  }
+  
+  if (uv) {
+    ylab <- "CRPS (m/s)"
+  } else {
+    ylab <- "Energy score"
+  }
+  
+  df <- data.frame(lt = 1:33, s = as.vector(s), mth = rep(colnames(s), each = 33))
+  plot_obj <- ggplot(df) + geom_line(aes(x = lt, y = s, col = mth, linetype = mth)) +
+    scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
+    scale_y_continuous(name = "CRPS (m/s)", limits = c(0.5, 2)) +
+    theme_bw() +
+    theme(legend.title = element_blank(),
+          legend.justification = c(0.5, 1),
+          legend.position = c(0.5, 0.99),
+          legend.background = element_rect(fill = "transparent", color = NA),
+          legend.key = element_rect(fill = "transparent", color = NA)) +
+    guides(col = guide_legend(nrow = 2, byrow = TRUE))
+  
+  if (!is.null(filename)) {
+    ggsave(plot = plot_obj, filename, height = 2.5, width = 4)
+  } else {
+    return(plot_obj)
+  }
+}
+
+# plot weights of order statistics
+plot_order_w <- function(lt, w_arr, method = c("c1", "c2", "ifs"), filename = NULL) {
+  
+  method <- match.arg(method)
+  
+  if (method == "c1") {
+    title <- "COSMO-1E"
+    w <- colMeans(w_arr[lt, , 1:11])
+    sc_x <- scale_x_continuous(name = "Order statistic", breaks = 1:M, labels = 1:M, expand = c(0, 0))
+  } else if (method == "c2") {
+    title <- "COSMO-2E"
+    sc_x <- scale_x_continuous(name = "Order statistic", breaks = c(1, 5, 10, 15, 21),
+                               labels = c(1, 5, 10, 15, 21), expand = c(0, 0))
+    w <- colMeans(w_arr[lt, , 12:32])
+  } else if (method == "ifs") {
+    title <- "ECMWF IFS"
+    w <- colMeans(w_arr[lt, , 33:83])
+    sc_x <- scale_x_continuous(name = "Order statistic", breaks = c(1, seq(10, 40, 10), 51), 
+                               labels = c(1, seq(10, 40, 10), 51), expand = c(0, 0))
+  }
+  
+  M <- length(w)
+  df <- data.frame(ord = 1:M, w = w)
+  plot_obj <- ggplot(df) + geom_bar(aes(x = ord, y = w), stat = "identity") + sc_x +
+    scale_y_continuous(name = "Weight", limits = c(0, 0.1), expand = c(0, 0)) +
+    ggtitle("ECMWF IFS") +
+    theme_bw() +
+    theme(panel.grid = element_blank(),
+          plot.title = element_text(size = 12))
+  
+  if (!is.null(filename)) {
+    ggsave(plot = plot_obj, filename, height = 2.3, width = 3.2)
+  } else {
+    return(plot_obj)
+  }
+  
+}
+
+# plot PIT histograms
+plot_pit(lt, method = c("c1", "c2", "ifs", "lp-eq", "lp-ds", "lp-po", "lp-or"), w_arr = NULL, filename = NULL) {
+  
+  method <- match.arg(method)
+  
+  # load test data
+  dat <- load_data(lt) 
+  dat <- dat %>% group_by(nat_abbr) %>% filter(n() == 1030) %>% ungroup() %>% 
+    filter(reftime >= "2022-06-01", nat_abbr %in% stat_list)
+  y <- dat$obs
+  
+  if (method == "c1") {
+    x <- as.matrix(dat$`COSMO-1E`)
+    title <- "COSMO-1E"
+  } else if (method == "c2") {
+    x <- as.matrix(dat$`COSMO-2E`)
+    title <- "COSMO-2E"
+  } else if (method == "ifs") {
+    x <- as.matrix(dat$ECMWF_IFS)
+    title <- "ECMWF IFS"
+  } else if (method == "lp-eq") {
+    x <- cbind(as.matrix(dat$`COSMO-1E`), as.matrix(dat$`COSMO-2E`), as.matrix(dat$ECMWF_IFS))
+    title <- "LP Equal"
+  } else if (method == "lp-ds") {
+    x <- cbind(as.matrix(dat$`COSMO-1E`), as.matrix(dat$`COSMO-2E`), as.matrix(dat$ECMWF_IFS))
+    w <- w_arr[lt, , ]
+    w <- cbind(replicate(11, w[, 1]/11), replicate(21, w[, 2]/21), replicate(51, w[, 3]/51))
+    w <- lapply(1:nrow(w), function(i) replicate(361, w[i, ]) %>% t()) %>% do.call(rbind, .)
+    title <- "LP Discrete"
+  } else if (method == "lp-po") {
+    x <- cbind(as.matrix(dat$`COSMO-1E`), as.matrix(dat$`COSMO-2E`), as.matrix(dat$ECMWF_IFS))
+    w <- w_arr[lt, , ]
+    w <- lapply(1:nrow(w), function(i) replicate(361, w[i, ]) %>% t()) %>% do.call(rbind, .)
+    title <- "LP Point"
+  } else if (method == "lp-or") {
+    x1 <- as.matrix(dat$`COSMO-1E`)%>% apply(1, sort) %>% t()
+    x2 <- as.matrix(dat$`COSMO-2E`)%>% apply(1, sort) %>% t()
+    x3 <- as.matrix(dat$ECMWF_IFS)%>% apply(1, sort) %>% t()
+    x <- cbind(x1, x2, x3)
+    w <- w_arr[lt, , ]
+    w <- lapply(1:nrow(w), function(i) replicate(361, w[i, ]) %>% t()) %>% do.call(rbind, .)
+    title <- "LP Ordered"
+  }
+  
+  if (method %in% c("c1", "c2", "ifs", "lp-eq")) w <- array(1, dim(x))
+  
+  pit <- rowSums(w*(x < y)) + runif(length(y))*(rowMeans(w*(x <= y)) - rowMeans(w*(x < y)))
+  
+  plot_obj <- pit_hist(pit, ranks = FALSE, ymax = 0.6, xticks = FALSE, 
+                       xlab = NULL, yticks = FALSE, ylab = NULL, title = title) +
+    theme(plot.title = element_text(size = 11))
+  
+  if (!is.null(filename)) {
+    ggsave(plot = plot_obj, filename, height = 7*0.25, width = 8*0.25)
+  } else {
+    return(plot_obj)
+  }
+  
+}
+
+
