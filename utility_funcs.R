@@ -1,4 +1,6 @@
-
+################################################################################
+####################### utility functions used in main.R #######################
+################################################################################
 
 
 ################################################################################
@@ -6,8 +8,8 @@
 
 load_data <- function(lt = NULL, stat_id = NULL, path = "C:/Users/sa20i493/Documents/Data/MeteoSwiss/") {
   
-  # unfortunately, I stored the fcsts as data.frame columns
-  # therefore you cannot concatenate the three forecast sources
+  # the fcsts are stored as data.frame columns
+  # therefore, the three forecast sources cannot be concatenated
   # into a single dataset (as the number of members differ)
   fcst <- sapply(
     paste0(path, c("COSMO-1E", "COSMO-2E", "ECMWF_IFS")),
@@ -19,9 +21,6 @@ load_data <- function(lt = NULL, stat_id = NULL, path = "C:/Users/sa20i493/Docum
   
   ## read in single station
   ## (for performance, but reading in all for one lead time might work)
-  ## you may want to consider repartitioning the dataset by lead time -
-  ## now partitioned by reference time - to optimize for analysis access
-  ## patterns
   if (!is.null(stat_id) & !is.null(lt)) {
     ff <- lapply(
       names(fcst),
@@ -163,7 +162,6 @@ get_results_uv <- function(kernel, lt_vec = 1:33, stat_ids = stat_list, mbm = FA
   
 }
 
-
 ## multivariate
 get_results_mv <- function(kernel, lt_vec = 1:33, stat_ids = stat_list, mbm = FALSE) {
   w_lp <- array(NA, c(length(lt_vec), 3))
@@ -198,7 +196,6 @@ get_results_mv <- function(kernel, lt_vec = 1:33, stat_ids = stat_list, mbm = FA
   
   return(list(crps = crps_mat, es = es_mat, w = list(lp = w_lp, wtd = w_wtd)))
 }
-
 
 
 ################################################################################
@@ -349,30 +346,8 @@ mbm_mom_est <- function(y, dat_tr, dat_ts, sc = "sqrt") {
 }
 
 
-
-
 ################################################################################
 ##### evaluate functions
-
-# needed?
-get_cal <- function(y, x, w = rep(1/ncol(x), ncol(x)), type = NULL) {
-  n <- length(y)
-  F_y <- sapply(1:n, function(i) sum(w[x[i, ] <= y[i]]))
-  Fm_y <- sapply(1:n, function(i) sum(w[x[i, ] < y[i]]))
-  Z_F <- Fm_y + runif(n)*(F_y - Fm_y)
-  if (!is.null(type)) {
-    if (type == "diV") {
-      crps_div(Z_F) 
-    } else if (type == "var") {
-      var(Z_F)
-    } else if (type == "mean") {
-      mean(Z_F)
-    }
-  } else {
-    Z_F
-  }
-}
-
 
 get_scores <- function(tr_dat, ts_dat, kernel = "Gaussian", clim = FALSE) {
   
@@ -882,7 +857,6 @@ get_mv_mbm_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian", cl
   
   return(list(crps = crps_mat, es = es_vec, w = w))
 }
-
 
 
 ################################################################################
