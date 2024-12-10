@@ -20,8 +20,7 @@ lt_vec <- 1:33
 
 # stations
 stat_list <- get_stations(lt_vec)
-stat_info <- read_parquet("Data/station_info.parquet")
-stat_info <- stat_info %>% filter(nat_abbr %in% stat_list)
+stat_info <- load("Data/stat_info.RData")
 
 # apply member-by-member post-processing?
 mbm <- FALSE
