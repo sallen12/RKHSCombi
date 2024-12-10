@@ -116,4 +116,3 @@ plot_pit(lt, method = "lp-ds", w_arr = results_uv$w$lp, filename = "Figures/cs_p
 plot_pit(lt, method = "lp-po", w_arr = results_uv$w$wtd, filename = "Figures/cs_pit_wtd.png")
 plot_pit(lt, method = "lp-or", w_arr = results_uv$w$ord, filename = "Figures/cs_pit_ord.png")
 
-
