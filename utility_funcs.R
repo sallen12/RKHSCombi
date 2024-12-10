@@ -6,120 +6,14 @@
 ################################################################################
 ##### set up functions
 
-# function to load and pre-process data
-load_data <- function(lt = NULL, stat_id = NULL, path = "C:/Users/sa20i493/Documents/Data/MeteoSwiss/") {
-  
-  # the three forecast sources cannot be concatenated
-  # into a single dataset (as the number of members differ)
-  fcst <- sapply(
-    paste0(path, c("COSMO-1E", "COSMO-2E", "ECMWF_IFS")),
-    open_dataset,
-    simplify = FALSE
-  )
-  obs <- open_dataset(paste0(path, "obs"))
-  
-  
-  ## read in single station
-  ## (for performance, but reading in all for one lead time might work)
-  if (!is.null(stat_id) & !is.null(lt)) {
-    ff <- lapply(
-      names(fcst),
-      function(nn) {
-        print(paste0("load ", nn))
-        fcst[[nn]] %>%
-          filter(lead == lt, nat_abbr == stat_id) %>%
-          collect() %>%
-          rename(!!nn := fcst) # change name of forecast column so that datasets can be merged
-      }
-    )
-  } else if (is.null(stat_id) & !is.null(lt)) {
-    ff <- lapply(
-      names(fcst),
-      function(nn) {
-        print(paste0("load ", nn))
-        fcst[[nn]] %>%
-          filter(lead == lt) %>%
-          collect() %>%
-          rename(!!nn := fcst) # change name of forecast column so that datasets can be merged
-      }
-    )
-  } else if (!is.null(stat_id) & is.null(lt)) {
-    ff <- lapply(
-      names(fcst),
-      function(nn) {
-        print(paste0("load ", nn))
-        fcst[[nn]] %>%
-          filter(nat_abbr == stat_id) %>%
-          collect() %>%
-          rename(!!nn := fcst) # change name of forecast column so that datasets can be merged
-      }
-    )
-  } else {
-    ff <- lapply(
-      names(fcst),
-      function(nn) {
-        print(paste0("load ", nn))
-        fcst[[nn]] %>%
-          collect() %>%
-          rename(!!nn := fcst) # change name of forecast column so that datasets can be merged
-      }
-    )
-  }
-  
-  
-  ## join the datasets, remove source column to allow for join
-  ff <- lapply(ff, function(x) select(x, -source)) %>%
-    Reduce(inner_join, .)
-  
-  time_of_day <- unique(lubridate::hour(ff$time))
-  
+load_data <- function(lt, stat_id = NULL) {
+  filename <- paste0("Data/wsdat_", lt, "h.RDS")
+  dat <- readRDS(filename)
   if (!is.null(stat_id)) {
-    oo <- obs %>%
-      collect() %>%
-      filter(
-        nat_abbr == stat_id,
-        lubridate::hour(time) == time_of_day
-      )
-  } else {
-    oo <- obs %>%
-      collect() %>%
-      filter(
-        lubridate::hour(time) == time_of_day
-      )
-    
+    dat <- dat %>% filter(nat_abbr %in% stat_id)
   }
-  
-  data <- ff %>% inner_join(oo, by = c("time", "nat_abbr")) %>%
-    rename("COSMO-1E" := paste0(path, "COSMO-1E"),
-                  "COSMO-2E" := paste0(path, "COSMO-2E"),
-                  "ECMWF_IFS" := paste0(path, "ECMWF_IFS"))
-  
-  return(data)
+  return(dat)
 }
-
-# function to extract list of stations
-get_stations <- function(lt_vec = 1:33, new = FALSE, path = NULL) {
-  
-  if (new) {
-    stat_ids <- vector("list", length(lt_vec))
-    
-    for (i in lt_vec) {
-      print(i)
-      dat <- load_data(i, path = "C:/Users/sa20i493/Documents/Data/MeteoSwiss/") # load dat
-      # restrict attention to stations with complete set of observations
-      dat <- dat %>% group_by(nat_abbr) %>% filter(n() == 1030) %>% ungroup()
-      stat_ids[[i]] <- unique(dat$nat_abbr)
-    }
-    
-    stat_list <- Reduce(intersect, stat_ids)
-    save(stat_list, file = "Data/stat_list.RData")
-  } else {
-    load("Data/stat_list.RData")
-    return(stat_list)
-  }
-  
-}
-
 
 ################################################################################
 ##### kernel functions
@@ -288,9 +182,7 @@ get_results_uv <- function(kernel, lt_vec = 1:33, stat_ids = stat_list, mbm = FA
   for (i in seq_along(lt_vec)) {
     lead <- lt_vec[i]
     
-    dat <- load_data(lead, stat_id = NULL) # load dat
-    # restrict attention to stations with complete set of observations
-    dat <- dat %>% group_by(nat_abbr) %>% filter(n() == 1030) %>% ungroup()
+    dat <- load_data(lead)
     
     for (j in seq_along(stat_ids)) {
       print(c(lead, j))
@@ -327,9 +219,7 @@ get_results_mv <- function(kernel, lt_vec = 1:33, stat_ids = stat_list, mbm = FA
     lead <- lt_vec[i]
     print(lead)
     
-    dat <- load_data(lead) # load dat
-    # restrict attention to stations with complete set of observations
-    dat <- dat %>% filter(nat_abbr %in% stat_ids) %>% group_by(nat_abbr) %>% filter(n() == 1030) %>% ungroup() 
+    dat <- load_data(lead)
     
     tr_dat <- dat %>% filter(reftime < "2022-06-01")
     ts_dat <- dat %>% filter(reftime >= "2022-06-01")
@@ -794,8 +684,8 @@ plot_w_vs_lt <- function(w, filename = NULL) {
 # plot weight vs mean squared error
 plot_w_vs_mse <- function(lt, uv = TRUE, ylims = c(0, 0.1), filename = NULL) {
   
-  dat <- load_data(lt) %>% group_by(nat_abbr) %>% filter(n() == 1030) %>% 
-    ungroup() %>% filter(reftime >= "2022-06-01", nat_abbr %in% stat_list)
+  dat <- load_data(lead)
+  dat <- dat %>% filter(reftime >= "2022-06-01", nat_abbr %in% stat_list)
   
   if (uv) {
     mse <- c(colMeans((dat$`COSMO-1E` - dat$obs)^2),
@@ -929,8 +819,7 @@ plot_pit(lt, method = c("c1", "c2", "ifs", "lp-eq", "lp-ds", "lp-po", "lp-or"), 
   
   # load test data
   dat <- load_data(lt) 
-  dat <- dat %>% group_by(nat_abbr) %>% filter(n() == 1030) %>% ungroup() %>% 
-    filter(reftime >= "2022-06-01", nat_abbr %in% stat_list)
+  dat <- dat %>% filter(reftime >= "2022-06-01", nat_abbr %in% stat_list)
   y <- dat$obs
   
   if (method == "c1") {

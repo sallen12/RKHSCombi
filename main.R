@@ -1,9 +1,7 @@
 ################################################################################
 ##### set up
 
-library(arrow)
 library(dplyr)
-library(tidyr)
 library(kernlab)
 library(scoringRules)
 library(Rcpp)
@@ -20,7 +18,7 @@ lt_vec <- 1:33
 
 # stations
 stat_list <- get_stations(lt_vec)
-stat_info <- load("Data/stat_info.RData")
+stat_info <- readRDS("Data/stat_info.RDS")
 
 # apply member-by-member post-processing?
 mbm <- FALSE

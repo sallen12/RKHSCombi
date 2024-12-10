@@ -5,3 +5,4 @@
 *.gz
 *.parquet
 Figures/
+Data/*.R
