@@ -203,14 +203,14 @@ get_results_uv <- function(kernel, lt_vec = 1:33, stat_ids = stat_list, mbm = FA
     }
   }
   
-  return(list(crps = crps_mat, w = list(lp = w_lp, wtd = w_wtd, ord = w_ord)))
+  return(list(crps = crps_mat, w = list(dsc = w_dsc, poi = w_poi, ord = w_ord)))
   
 }
 
 ## multivariate
 get_results_mv <- function(kernel, lt_vec = 1:33, stat_ids = stat_list, mbm = FALSE) {
-  w_lp <- array(NA, c(length(lt_vec), 3))
-  w_wtd <- array(NA, c(length(lt_vec), 83))
+  w_dsc <- array(NA, c(length(lt_vec), 3))
+  w_poi <- array(NA, c(length(lt_vec), 83))
   crps_mat <- array(NA, c(length(lt_vec), length(stat_ids), 6))
   es_mat <- array(NA, c(length(lt_vec), 6))
   dimnames(crps_mat)[[3]] <- colnames(es_mat) <- c("C1", "C2", "IFS", "LP-Eq", "LP-Ds", "LP-Po")
@@ -233,11 +233,11 @@ get_results_mv <- function(kernel, lt_vec = 1:33, stat_ids = stat_list, mbm = FA
     
     crps_mat[i, , ] <- scores$crps
     es_mat[i, ] <- scores$es
-    w_lp[i, ] <- scores$w$lp
-    w_wtd[i, ] <- scores$w$wtd
+    w_dsc[i, ] <- scores$w$dsc
+    w_poi[i, ] <- scores$w$poi
   }
   
-  return(list(crps = crps_mat, es = es_mat, w = list(lp = w_lp, wtd = w_wtd)))
+  return(list(crps = crps_mat, es = es_mat, w = list(dsc = w_dsc, poi = w_poi)))
 }
 
 
@@ -275,15 +275,15 @@ get_scores <- function(tr_dat, ts_dat, kernel = "Gaussian") {
   
   # LP Discrete (linear pool of discrete predictive distributions)
   x_tr <- tr_dat %>% select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>% as.matrix()
-  w_lp <- get_weights(x_tr, y_tr, kernel, ind = list(1:11, 12:32, 33:83))
-  w <- t(replicate(length(y_ts), rep(w_lp, c(11, 21, 51))))
+  w_dsc <- get_weights(x_tr, y_tr, kernel, ind = list(1:11, 12:32, 33:83))
+  w <- t(replicate(length(y_ts), rep(w_dsc, c(11, 21, 51))))
   
   crps_vec[5] <- mean(crps_sample(y_ts, x, w = w))
   
   
   # LP Point (linear pool of the individual point forecasts)
-  w_wtd <- get_weights(x_tr, y_tr, kernel)
-  w <- t(replicate(length(y_ts), w_wtd))
+  w_poi <- get_weights(x_tr, y_tr, kernel)
+  w <- t(replicate(length(y_ts), w_poi))
   
   crps_vec[6] <- mean(crps_sample(y_ts, x, w = w))
   
@@ -302,7 +302,7 @@ get_scores <- function(tr_dat, ts_dat, kernel = "Gaussian") {
   x_ord <- cbind(x_c1, x_c2, x_ifs)
   crps_vec[7] <- mean(crps_sample(y_ts, x_ord, w = w))
   
-  w <- list(lp = w_lp, wtd = w_wtd, ord = w_ord)
+  w <- list(dsc = w_dsc, poi = w_poi, ord = w_ord)
   
   return(list(crps = crps_vec, w = w))
 }
@@ -346,15 +346,15 @@ get_mbm_scores <- function(tr_dat, ts_dat, kernel = "Gaussian") {
   # LP Discrete (linear pool of discrete predictive distributions)
   x_tr <- cbind(x_tr_c1, x_tr_c2, x_tr_ifs)
   x_tr <- mbm_mom_est(y_tr, x_tr, x_tr)
-  w_lp <- get_weights(x_tr, y_tr, kernel, ind = list(1:11, 12:32, 33:83))
-  w <- t(replicate(length(y_ts), rep(w_lp, c(11, 21, 51))))
+  w_dsc <- get_weights(x_tr, y_tr, kernel, ind = list(1:11, 12:32, 33:83))
+  w <- t(replicate(length(y_ts), rep(w_dsc, c(11, 21, 51))))
   
   crps_vec[5] <- mean(crps_sample(y_ts, x, w = w))
   
   
   # LP Point (linear pool of the individual point forecasts)
-  w_wtd <- get_weights(x_tr, y_tr, kernel)
-  w <- t(replicate(length(y_ts), w_wtd))
+  w_poi <- get_weights(x_tr, y_tr, kernel)
+  w <- t(replicate(length(y_ts), w_poi))
   
   crps_vec[6] <- mean(crps_sample(y_ts, x, w = w))
   
@@ -379,7 +379,7 @@ get_mbm_scores <- function(tr_dat, ts_dat, kernel = "Gaussian") {
   x_ord <- cbind(x_c1, x_c2, x_ifs)
   crps_vec[7] <- mean(crps_sample(y_ts, x_ord, w = w))
   
-  w <- list(lp = w_lp, wtd = w_wtd, ord = w_ord)
+  w <- list(dsc = w_dsc, poi = w_poi, ord = w_ord)
 
   return(list(crps = crps_vec, w = w))
 }
@@ -447,9 +447,9 @@ get_mv_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian") {
       select(`COSMO-1E`, `COSMO-2E`, ECMWF_IFS) %>%
       cbind() %>% as.matrix()
   }) %>% simplify2array() %>% aperm(c(1, 3, 2))
-  w_lp <- get_mv_weights(x_tr, y_tr, kernel, ind = list(1:11, 12:32, 33:83))
+  w_dsc <- get_mv_weights(x_tr, y_tr, kernel, ind = list(1:11, 12:32, 33:83))
   
-  w <- rep(w_lp, c(11, 21, 51))
+  w <- rep(w_dsc, c(11, 21, 51))
   es_vec[5] <- mean(sapply(1:n_ts, function(i) es_sample(y_ts[i, ], x[i, , ], w = w / sum(w))))
   w <- t(replicate(n_ts, w))
   if (nrow(y_ts) == 1) w <- as.vector(w)
@@ -457,16 +457,16 @@ get_mv_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian") {
   
   
   # LP Point (linear pool of the individual point forecasts)
-  w_wtd <- get_mv_weights(x_tr, y_tr, kernel)
-  w <- t(replicate(n_ts, w_wtd))
+  w_poi <- get_mv_weights(x_tr, y_tr, kernel)
+  w <- t(replicate(n_ts, w_poi))
   if (nrow(y_ts) == 1) w <- as.vector(w)
   
-  es_vec[6] <- mean(sapply(1:n_ts, function(i) es_sample(y_ts[i, ], x[i, , ], w = w_wtd)))
+  es_vec[6] <- mean(sapply(1:n_ts, function(i) es_sample(y_ts[i, ], x[i, , ], w = w_poi)))
   crps_mat[, 6] <- sapply(1:d, function(j) mean(crps_sample(y_ts[, j], x[, j, ], w = w)))
   
   
   # store weights
-  w <- list(lp = w_lp, wtd = w_wtd)
+  w <- list(dsc = w_dsc, poi = w_poi)
   
   return(list(crps = crps_mat, es = es_vec, w = w))
 }
@@ -553,9 +553,9 @@ get_mv_mbm_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian") {
   # LP Discrete (linear pool of discrete predictive distributions)
   x_tr <- lapply(1:d, function(j) mbm_mom_est(y_tr[, j], x_tr[, j, ], x_tr[, j, ]))
   x_tr <- x_tr %>% simplify2array() %>% aperm(c(1, 3, 2))
-  w_lp <- get_mv_weights(x_tr, y_tr, kernel, ind = list(1:11, 12:32, 33:83))
+  w_dsc <- get_mv_weights(x_tr, y_tr, kernel, ind = list(1:11, 12:32, 33:83))
   
-  w <- rep(w_lp, c(11, 21, 51))
+  w <- rep(w_dsc, c(11, 21, 51))
   es_vec[5] <- mean(sapply(1:n_ts, function(i) es_sample(y_ts[i, ], x[i, , ], w = w / sum(w))))
   w <- t(replicate(n_ts, w))
   if (nrow(y_ts) == 1) w <- as.vector(w)
@@ -563,16 +563,16 @@ get_mv_mbm_scores  <- function(tr_dat, ts_dat, stat_ids, kernel = "Gaussian") {
   
   
   # LP Point (linear pool of the individual point forecasts)
-  w_wtd <- get_mv_weights(x_tr, y_tr, kernel)
-  w <- t(replicate(n_ts, w_wtd))
+  w_poi <- get_mv_weights(x_tr, y_tr, kernel)
+  w <- t(replicate(n_ts, w_poi))
   if (nrow(y_ts) == 1) w <- as.vector(w)
   
-  es_vec[6] <- mean(sapply(1:n_ts, function(i) es_sample(y_ts[i, ], x[i, , ], w = w_wtd)))
+  es_vec[6] <- mean(sapply(1:n_ts, function(i) es_sample(y_ts[i, ], x[i, , ], w = w_poi)))
   crps_mat[, 6] <- sapply(1:d, function(j) mean(crps_sample(y_ts[, j], x[, j, ], w = w)))
   
   
   # store weights
-  w <- list(lp = w_lp, wtd = w_wtd)
+  w <- list(dsc = w_dsc, poi = w_poi)
   
   return(list(crps = crps_mat, es = es_vec, w = w))
 }
@@ -655,13 +655,13 @@ plot_map <- function(lons, lats, z, title = NULL, filename = NULL){
 }
 
 # plot weight vs lead time
-plot_w_vs_lt <- function(w, filename = NULL) {
+plot_w_vs_lt <- function(w, lt_vec = 1:33, filename = NULL) {
   
   if (ncol(w) == 83) w <- cbind(rowSums(w[, 1:11]), rowSums(w[, 12:32]), rowSums(w[, 33:83]))
   
-  df <- data.frame(lt = 1:33, 
+  df <- data.frame(lt = lt_vec, 
                    w = as.vector(w),
-                   mth = rep(c("COSMO-1E", "COSMO-2E", "ECMWF IFS"), each = 33))
+                   mth = rep(c("COSMO-1E", "COSMO-2E", "ECMWF IFS"), each = length(lt_vec)))
   plot_obj <- ggplot(df) + 
     geom_line(aes(x = lt, y = w, col = mth, linetype = mth)) +
     scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
@@ -682,17 +682,19 @@ plot_w_vs_lt <- function(w, filename = NULL) {
 }
 
 # plot weight vs mean squared error
-plot_w_vs_mse <- function(lt, uv = TRUE, ylims = c(0, 0.1), filename = NULL) {
+plot_w_vs_mse <- function(lt, w_arr, ylims = c(0, 0.1), filename = NULL) {
   
-  dat <- load_data(lead)
+  dat <- load_data(lt)
   dat <- dat %>% filter(reftime >= "2022-06-01", nat_abbr %in% stat_list)
+  
+  uv <- !is.na(dim(w_arr)[3])
   
   if (uv) {
     mse <- c(colMeans((dat$`COSMO-1E` - dat$obs)^2),
              colMeans((dat$`COSMO-2E` - dat$obs)^2),
              colMeans((dat$ECMWF_IFS - dat$obs)^2))
     
-    w <- colMeans(results_uv$w$wtd[lt, , ])
+    w <- colMeans(w_arr[lt, , ])
     
     height <- 2.5
     width <- 4
@@ -711,7 +713,7 @@ plot_w_vs_mse <- function(lt, uv = TRUE, ylims = c(0, 0.1), filename = NULL) {
     
     mse <- colMeans(sqrt(apply((x - replicate(83, y))^2, c(1, 3), sum)))
     
-    w <- results_mv$w$wtd[lt, ]
+    w <- w_arr[lt, ]
     
     height <- 2.55
     width <- 4.08
@@ -741,7 +743,7 @@ plot_w_vs_mse <- function(lt, uv = TRUE, ylims = c(0, 0.1), filename = NULL) {
 }
 
 # plot score vs lead time
-plot_score_vs_lt <- function(s, uv = TRUE, ylims = c(0.5, 2), filename = NULL) {
+plot_sc_vs_lt <- function(s, lt_vec = 1:33, uv = TRUE, ylims = c(0.5, 2), filename = NULL) {
   
   if (ncol(s) == 6) {
     colnames(s) <- c("COSMO-1E", "COSMO-2E", "ECMWF IFS", "LP  Equal", "LP Discrete", "LP Point")
@@ -755,10 +757,10 @@ plot_score_vs_lt <- function(s, uv = TRUE, ylims = c(0.5, 2), filename = NULL) {
     ylab <- "Energy score"
   }
   
-  df <- data.frame(lt = 1:33, s = as.vector(s), mth = rep(colnames(s), each = 33))
+  df <- data.frame(lt = lt_vec, s = as.vector(s), mth = rep(colnames(s), each = length(lt_vec)))
   plot_obj <- ggplot(df) + geom_line(aes(x = lt, y = s, col = mth, linetype = mth)) +
     scale_x_continuous(name = "Lead time (hours)", expand = c(0, 0)) +
-    scale_y_continuous(name = "CRPS (m/s)", limits = c(0.5, 2)) +
+    scale_y_continuous(name = ylab, limits = ylims) +
     theme_bw() +
     theme(legend.title = element_blank(),
           legend.justification = c(0.5, 1),
@@ -782,7 +784,7 @@ plot_order_w <- function(lt, w_arr, method = c("c1", "c2", "ifs"), filename = NU
   if (method == "c1") {
     title <- "COSMO-1E"
     w <- colMeans(w_arr[lt, , 1:11])
-    sc_x <- scale_x_continuous(name = "Order statistic", breaks = 1:M, labels = 1:M, expand = c(0, 0))
+    sc_x <- scale_x_continuous(name = "Order statistic", breaks = 1:11, labels = 1:11, expand = c(0, 0))
   } else if (method == "c2") {
     title <- "COSMO-2E"
     sc_x <- scale_x_continuous(name = "Order statistic", breaks = c(1, 5, 10, 15, 21),
@@ -799,7 +801,7 @@ plot_order_w <- function(lt, w_arr, method = c("c1", "c2", "ifs"), filename = NU
   df <- data.frame(ord = 1:M, w = w)
   plot_obj <- ggplot(df) + geom_bar(aes(x = ord, y = w), stat = "identity") + sc_x +
     scale_y_continuous(name = "Weight", limits = c(0, 0.1), expand = c(0, 0)) +
-    ggtitle("ECMWF IFS") +
+    ggtitle(title) +
     theme_bw() +
     theme(panel.grid = element_blank(),
           plot.title = element_text(size = 12))
@@ -813,7 +815,7 @@ plot_order_w <- function(lt, w_arr, method = c("c1", "c2", "ifs"), filename = NU
 }
 
 # plot PIT histograms
-plot_pit(lt, method = c("c1", "c2", "ifs", "lp-eq", "lp-ds", "lp-po", "lp-or"), w_arr = NULL, filename = NULL) {
+plot_pit <- function(lt, method = c("c1", "c2", "ifs", "lp-eq", "lp-ds", "lp-po", "lp-or"), w_arr = NULL, filename = NULL) {
   
   method <- match.arg(method)
   
@@ -855,7 +857,7 @@ plot_pit(lt, method = c("c1", "c2", "ifs", "lp-eq", "lp-ds", "lp-po", "lp-or"), 
     title <- "LP Ordered"
   }
   
-  if (method %in% c("c1", "c2", "ifs", "lp-eq")) w <- array(1, dim(x))
+  if (method %in% c("c1", "c2", "ifs", "lp-eq")) w <- array(1/ncol(x), dim(x))
   
   pit <- rowSums(w*(x < y)) + runif(length(y))*(rowMeans(w*(x <= y)) - rowMeans(w*(x < y)))
   
